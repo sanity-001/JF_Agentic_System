@@ -154,3 +154,18 @@ async def get_history(limit: int = 50, offset: int = 0):
         return _detector.get_history(limit, offset)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Mode control (added for Agent integration) ──
+
+class SetModeRequest(BaseModel):
+    mode: str  # "baseline" | "signal"
+
+
+@router.post("/mode")
+async def set_mode(req: SetModeRequest):
+    try:
+        _detector.acq_mode = req.mode
+        return CommandResponse(success=True, message=f"Mode set to {req.mode}")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
