@@ -1,0 +1,11 @@
+{
+    "name": "experiment-control",
+    "version": "0.1.0",
+    "description": "探测器实验控制插件 — 水冷机、位移台、探测器操作与数据采集分析",
+    "enabled_by_default": true,
+    "tools_dir": "tools",
+    "skills_dir": "skills",
+    "mcp_file": "",
+    "hooks_file": "",
+    "commands": {}
+}
