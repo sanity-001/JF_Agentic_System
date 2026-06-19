@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Node
+node_modules/
+
+# Large files
+*.zip
+*.tar.gz
+*.7z
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+*.log
+
+# Test
+.pytest_cache/
+.tox/
+
+# Build
+dist/
+build/
+
+# Superpowers
+.superpowers/
+
+# Jupyter
+.ipynb_checkpoints/
