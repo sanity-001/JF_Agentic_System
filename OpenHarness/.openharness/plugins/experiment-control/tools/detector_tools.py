@@ -342,8 +342,8 @@ class DetectorRunAcquisition(BaseTool):
                         is_error=True
                     )
 
-        # 4. Safety interlock for signal mode
-        if arguments.mode == "signal" and arguments.check_safety:
+        # 4. Safety interlock — mandatory for ALL acquisition modes
+        if arguments.check_safety:
             async with session.get(f"{BASE_URL}/api/chiller/status") as resp:
                 ch_data = await resp.json()
             if resp.status == 200:
