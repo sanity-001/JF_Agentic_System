@@ -26,10 +26,11 @@ version: 0.2.0
 ### 探测器
 | 工具 | 用途 |
 |------|------|
-| detector_load_config | ⭐ 加载配置文件并连接（正常连接方式） |
+| detector_load_config | ⭐ 加载配置文件并连接（默认路径 /home/jfdaq/JF500K/JF500K-shine.config） |
+| detector_browse_files | 浏览服务器文件，查找配置或数据 |
 | detector_set_mode | 设置 baseline/signal 模式 |
 | detector_set_param | 设置单个参数 |
-| detector_run_acquisition | ⭐ 一键采集（含安全联锁） |
+| detector_run_acquisition | ⭐ 一键采集（含安全联锁，自动追踪基线状态和文件路径） |
 | detector_shutdown | 安全关机 |
 
 ### 位移台
@@ -56,19 +57,21 @@ version: 0.2.0
 1. chiller_get_status                      → 确认连接和温度
 2. chiller_set_temperature(20)             → 设定目标温度
 3. chiller_wait_stable(20)                 → 等待稳定
-4. detector_load_config("path/to/config")  → 加载配置，连接探测器
+4. detector_load_config()                  → 加载默认配置并连接
+                                            （默认: /home/jfdaq/JF500K/JF500K-shine.config）
 5. detector_set_mode("baseline")           → 基线模式
-6. detector_set_param("exptime", "500")    → 设置参数
-7. detector_run_acquisition(               → 采集基线
-     mode="baseline", ...)
-8. ⚠️ 暂停，询问用户：                       X 光机联锁（强制暂停）
+6. detector_set_param("exptime", "500")    → 设置曝光时间
+7. detector_set_param("frames", "200")     → 设置帧数
+8. detector_run_acquisition(               → 采集基线
+     mode="baseline")                       （自动记录基线状态和 raw 文件路径）
+9. ⚠️ 暂停，询问用户：                       X 光机联锁（强制暂停）
    "基线采集完成。请确认已开启 X 光机，然后我将继续采集信号。"
-9. 等待用户确认
-10. detector_set_mode("signal")            → 切换信号模式
-11. detector_run_acquisition(              → 采集信号
-      mode="signal", ...)
-12. processing_analyze_acquisition         → 自动分析
-13. 总结结果
+10. 等待用户确认
+11. detector_set_mode("signal")            → 切换信号模式
+12. detector_run_acquisition(              → 采集信号（自动检查基线是否存在）
+      mode="signal")
+13. processing_analyze_acquisition         → 自动分析（自动使用上次采集的文件路径）
+14. 总结结果
 ```
 
 ### 工作流 2: 纯基线采集（不需要 X 光）

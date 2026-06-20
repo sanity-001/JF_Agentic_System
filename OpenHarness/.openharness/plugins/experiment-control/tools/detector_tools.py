@@ -1,11 +1,16 @@
-"""Detector control tools — connection, acquisition, and shutdown."""
+"""Detector control tools — connection, acquisition, and shutdown (500K mode)."""
 import asyncio
+import glob
+import os
 import time
 
 from openharness.tools.base import BaseTool, ToolExecutionContext, ToolResult
 from pydantic import BaseModel, Field
 
 from . import BASE_URL, get_session
+
+# ── Default config for 500K detector ──
+DEFAULT_CONFIG_PATH = "/home/jfdaq/JF500K/JF500K-shine.config"
 
 
 # ── Input models ──
@@ -21,7 +26,14 @@ class DetectorConnectInput(BaseModel):
 
 
 class LoadConfigInput(BaseModel):
-    path: str = Field(description="本地 .config 配置文件路径")
+    path: str = Field(
+        default=DEFAULT_CONFIG_PATH,
+        description=f"本地 .config 配置文件路径（默认: {DEFAULT_CONFIG_PATH}）"
+    )
+
+
+class BrowseFilesInput(BaseModel):
+    path: str = Field(default=".", description="浏览目录路径")
 
 
 class SetParamInput(BaseModel):
@@ -34,7 +46,10 @@ class SetModeInput(BaseModel):
 
 
 class RunAcquisitionInput(BaseModel):
-    config_path: str = Field(description="探测器 .config 配置文件路径")
+    config_path: str = Field(
+        default=DEFAULT_CONFIG_PATH,
+        description=f"探测器 .config 配置文件路径（默认: {DEFAULT_CONFIG_PATH}）"
+    )
     mode: str = Field(description='"baseline" 或 "signal"')
     params: dict = Field(default_factory=dict,
                          description="采集参数，如 {exptime: '500', frames: '200'}")
@@ -64,7 +79,7 @@ class DetectorGetStatus(BaseTool):
 
 class DetectorGetParams(BaseTool):
     name = "detector_get_params"
-    description = "查询探测器当前所有参数"
+    description = "查询探测器当前所有参数（含 fpath/fname，用于确定 raw 文件位置）"
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
@@ -76,7 +91,7 @@ class DetectorGetParams(BaseTool):
                               is_error=True)
         if not data:
             return ToolResult(output="⚠️ 探测器未连接，无参数")
-        lines = [f"{k}: {v}" for k, v in data.items()]
+        lines = [f"{k}: {v}" for k, v in sorted(data.items())]
         return ToolResult(output="\n".join(lines))
 
 
@@ -99,9 +114,41 @@ class DetectorGetTemperatures(BaseTool):
         )
 
 
+class DetectorBrowseFiles(BaseTool):
+    name = "detector_browse_files"
+    description = "浏览服务器上的文件和目录，用于查找配置文件或 raw 数据文件"
+
+    async def execute(self, arguments: BrowseFilesInput,
+                      context: ToolExecutionContext) -> ToolResult:
+        session = get_session()
+        async with session.get(
+            f"{BASE_URL}/api/detector/browse",
+            params={"path": arguments.path}
+        ) as resp:
+            data = await resp.json()
+        if resp.status != 200:
+            return ToolResult(output=f"❌ {data.get('detail', data)}",
+                              is_error=True)
+
+        lines = [f"📁 当前目录: {data['current']}"]
+        if data.get("parent"):
+            lines.append(f"  📂 ../ (上级目录)")
+        for d in data.get("dirs", []):
+            lines.append(f"  📂 {d['name']}/")
+        for f in data.get("files", []):
+            lines.append(f"  📄 {f['name']}")
+
+        # Store for later use by load_config
+        context.metadata["last_browse_dir"] = data["current"]
+        return ToolResult(output="\n".join(lines))
+
+
 class DetectorLoadConfig(BaseTool):
     name = "detector_load_config"
-    description = "加载本地 .config 配置文件并自动连接探测器（正常连接方式）"
+    description = (
+        f"加载本地 .config 配置文件并自动连接探测器。"
+        f"默认加载 {DEFAULT_CONFIG_PATH}，不传路径则使用默认配置。"
+    )
 
     async def execute(self, arguments: LoadConfigInput,
                       context: ToolExecutionContext) -> ToolResult:
@@ -112,8 +159,12 @@ class DetectorLoadConfig(BaseTool):
         ) as resp:
             data = await resp.json()
         if resp.status == 200:
+            context.metadata["config_loaded"] = True
+            context.metadata["config_path"] = arguments.path
             return ToolResult(
-                output=f"✅ 配置已加载，探测器已连接\n参数: {data.get('message', '')}"
+                output=f"✅ 配置已加载，探测器已连接\n"
+                       f"配置文件: {arguments.path}\n"
+                       f"参数: {data.get('message', '')}"
             )
         return ToolResult(output=f"❌ {data.get('detail', data)}",
                           is_error=True)
@@ -133,6 +184,7 @@ class DetectorConnect(BaseTool):
         ) as resp:
             data = await resp.json()
         if resp.status == 200:
+            context.metadata["config_loaded"] = True
             return ToolResult(output="✅ 探测器已连接")
         return ToolResult(output=f"❌ {data.get('detail', data)}",
                           is_error=True)
@@ -148,6 +200,7 @@ class DetectorDisconnect(BaseTool):
         async with session.post(f"{BASE_URL}/api/detector/disconnect") as resp:
             data = await resp.json()
         if resp.status == 200:
+            context.metadata.pop("config_loaded", None)
             return ToolResult(output="✅ 探测器已断开")
         return ToolResult(output=f"❌ {data.get('detail', data)}",
                           is_error=True)
@@ -175,7 +228,7 @@ class DetectorSetParam(BaseTool):
 
 class DetectorSetMode(BaseTool):
     name = "detector_set_mode"
-    description = '设置采集模式："baseline"（基线采集）或 "signal"（信号采集）'
+    description = '设置采集模式："baseline"（基线采集，结果保存为基线）或 "signal"（信号采集，需先有基线）'
 
     async def execute(self, arguments: SetModeInput,
                       context: ToolExecutionContext) -> ToolResult:
@@ -191,6 +244,7 @@ class DetectorSetMode(BaseTool):
         ) as resp:
             data = await resp.json()
         if resp.status == 200:
+            context.metadata["acq_mode"] = arguments.mode
             return ToolResult(
                 output=f"✅ 采集模式已设为 {arguments.mode}"
             )
@@ -228,42 +282,28 @@ class DetectorStopAcquisition(BaseTool):
                           is_error=True)
 
 
-class DetectorProcessResult(BaseTool):
-    name = "detector_process_result"
-    description = "处理采集结果：基线模式保存基线，信号模式减基线生成差值图"
-
-    async def execute(self, arguments: NoInput,
-                      context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
-        async with session.get(f"{BASE_URL}/api/detector/status") as resp:
-            data = await resp.json()
-
-        if data.get("acquiring"):
-            return ToolResult(
-                output="⚠️ 采集仍在进行中，请等待完成后再处理结果",
-                is_error=True
-            )
-
-        if not data.get("connected"):
-            return ToolResult(output="⚠️ 探测器未连接", is_error=True)
-
-        return ToolResult(
-            output="✅ 采集结果已处理（结果数据随采集自动处理）"
-        )
-
-
 # ── Composite tools ──
 
 class DetectorRunAcquisition(BaseTool):
     name = "detector_run_acquisition"
     description = (
         "⭐ 一键采集：加载配置文件→设置采集模式→设置参数→安全联锁检查→"
-        "启动采集→等待完成→处理结果。适合标准实验流程。"
+        "启动采集→等待完成→返回 raw 文件路径。"
+        f"默认使用配置文件 {DEFAULT_CONFIG_PATH}。"
+        "baseline 模式会自动记录基线状态，signal 模式会检查是否已有基线。"
     )
 
     async def execute(self, arguments: RunAcquisitionInput,
                       context: ToolExecutionContext) -> ToolResult:
         session = get_session()
+
+        # 0. Check baseline prerequisite for signal mode
+        if arguments.mode == "signal":
+            if not context.metadata.get("has_baseline"):
+                return ToolResult(
+                    output="❌ 尚未采集基线。请先执行一次基线采集（mode='baseline'）。",
+                    is_error=True
+                )
 
         # 1. Load config (connects detector)
         async with session.post(
@@ -343,8 +383,29 @@ class DetectorRunAcquisition(BaseTool):
                 )
 
         duration = int(time.time() - start_time)
+
+        # 7. Read params to determine raw file location (500K: single file)
+        async with session.get(f"{BASE_URL}/api/detector/params") as resp:
+            params = await resp.json()
+
+        fpath = params.get("fpath", "")
+        fname = params.get("fname", "")
+        raw_file = f"{fpath}/{fname}_d0_f0_*.raw"
+
+        # 8. Store state in metadata for downstream tools
+        context.metadata["last_raw_pattern"] = raw_file
+        context.metadata["last_fpath"] = fpath
+        context.metadata["last_fname"] = fname
+        context.metadata["last_acq_mode"] = arguments.mode
+
+        if arguments.mode == "baseline":
+            context.metadata["has_baseline"] = True
+            context.metadata["baseline_fpath"] = fpath
+            context.metadata["baseline_fname"] = fname
+
         return ToolResult(
-            output=f"✅ 采集完成（模式: {arguments.mode}，耗时 {duration}s）"
+            output=f"✅ 采集完成（模式: {arguments.mode}，耗时 {duration}s）\n"
+                   f"文件位置: {fpath}/{fname}_*.raw"
         )
 
 
@@ -366,4 +427,7 @@ class DetectorShutdown(BaseTool):
             steps.append("断开连接")
         except Exception:
             pass
+        # Clear acquisition state
+        context.metadata.pop("has_baseline", None)
+        context.metadata.pop("last_raw_pattern", None)
         return ToolResult(output=f"✅ 关机完成: {' → '.join(steps)}")

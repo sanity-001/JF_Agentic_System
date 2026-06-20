@@ -217,7 +217,8 @@ class ProcessingAnalyzeAcquisition(BaseTool):
     name = "processing_analyze_acquisition"
     description = (
         "⭐ 采集后一键分析：平均帧 + 增益图 + 噪声峰图 + 生成摘要。"
-        "在采集完成后调用此工具进行自动分析。"
+        "自动使用最近一次采集生成的 raw 文件。"
+        "也可手动指定文件路径。"
     )
 
     async def execute(self, arguments: AnalyzeInput,
@@ -225,13 +226,51 @@ class ProcessingAnalyzeAcquisition(BaseTool):
         session = get_session()
         results = []
 
+        # Auto-detect file path from last acquisition if not provided
+        file_path = arguments.file_path
+        baseline_path = arguments.baseline_path
+
+        if not file_path:
+            # Try to get from last acquisition metadata
+            fpath = context.metadata.get("last_fpath")
+            fname = context.metadata.get("last_fname")
+            if fpath and fname:
+                # Construct 500K raw file pattern
+                import glob as _glob
+                pattern = f"{fpath}/{fname}_d0_f0_*.raw"
+                matches = sorted(_glob.glob(pattern))
+                if matches:
+                    file_path = matches[-1]  # Latest file
+                else:
+                    return ToolResult(
+                        output=f"❌ 未找到采集文件。"
+                               f"查找路径: {pattern}",
+                        is_error=True
+                    )
+            else:
+                return ToolResult(
+                    output="❌ 未指定文件路径，且没有最近采集记录。"
+                           "请先执行采集，或手动指定 file_path 参数。",
+                    is_error=True
+                )
+
+        # Auto-detect baseline path
+        if not baseline_path:
+            bfpath = context.metadata.get("baseline_fpath")
+            bfname = context.metadata.get("baseline_fname")
+            if bfpath and bfname:
+                pattern = f"{bfpath}/{bfname}_d0_f0_*.raw"
+                matches = sorted(_glob.glob(pattern))
+                if matches:
+                    baseline_path = matches[-1]
+
         # 1. Average frames
         async with session.post(
             f"{BASE_URL}/api/processing/frame/average",
-            json={"file_path": arguments.file_path,
+            json={"file_path": file_path,
                   "start_frame": arguments.start_frame,
                   "end_frame": arguments.end_frame,
-                  "baseline_path": arguments.baseline_path}
+                  "baseline_path": baseline_path}
         ) as resp:
             if resp.status == 200:
                 avg = await resp.json()
@@ -242,11 +281,11 @@ class ProcessingAnalyzeAcquisition(BaseTool):
         # 2. Gain map
         async with session.post(
             f"{BASE_URL}/api/processing/gainmap/compute",
-            json={"file_path": arguments.file_path,
+            json={"file_path": file_path,
                   "start_frame": arguments.start_frame,
                   "end_frame": arguments.end_frame,
-                  "use_baseline": bool(arguments.baseline_path),
-                  "baseline_path": arguments.baseline_path}
+                  "use_baseline": bool(baseline_path),
+                  "baseline_path": baseline_path}
         ) as resp:
             if resp.status == 200:
                 gm = await resp.json()
@@ -257,7 +296,7 @@ class ProcessingAnalyzeAcquisition(BaseTool):
         # 3. Noise map
         async with session.post(
             f"{BASE_URL}/api/processing/noisemap/compute",
-            json={"file_path": arguments.file_path,
+            json={"file_path": file_path,
                   "start_frame": arguments.start_frame,
                   "end_frame": arguments.end_frame}
         ) as resp:
