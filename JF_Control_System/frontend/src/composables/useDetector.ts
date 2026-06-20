@@ -63,8 +63,21 @@ export function useDetector() {
     progress.value = { acquiring: false, percentage: 100 }
   }
 
-  // 监听 WebSocket 的采集完成信号
+  // 监听 WebSocket 的新格式消息: {displacement, chiller, detector, timestamp}
   onMessage((msg) => {
+    // 新后端格式：{displacement, chiller, detector, timestamp}
+    if (msg.detector) {
+      // 更新探测器状态
+      Object.assign(status, msg.detector)
+      // 采集完成 → 停止进度条
+      if (!msg.detector.acquiring && progress.value.acquiring) {
+        _stopLocalProgress()
+      }
+      error.value = null
+      return
+    }
+
+    // 兼容旧格式（保留原有 type-based 协议处理）
     if (msg.type === 'status_update') {
       const p = msg.data.progress
       if (p && !p.acquiring && progress.value.acquiring) {
