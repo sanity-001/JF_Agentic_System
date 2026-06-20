@@ -352,10 +352,10 @@ class DetectorRunAcquisition(BaseTool):
                         output="❌ 安全联锁：水冷机未运行，拒绝信号采集。请先启动水冷。",
                         is_error=True
                     )
-                temp = ch_data.get("temperature")
+                temp = ch_data.get("temperature", 0) / 100.0
                 if temp is not None and not (15 <= temp <= 25):
                     return ToolResult(
-                        output=f"❌ 安全联锁：水冷温度 {temp}°C 超出安全范围 [15, 25]°C",
+                        output=f"❌ 安全联锁：水冷温度 {temp:.1f}°C 超出安全范围 [15, 25]°C",
                         is_error=True
                     )
 

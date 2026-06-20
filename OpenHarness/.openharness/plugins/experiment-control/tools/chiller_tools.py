@@ -49,9 +49,11 @@ class ChillerGetStatus(BaseTool):
             return ToolResult(output="⚠️ 水冷机未连接")
         ind = data.get("indicators", {})
         running = "运行中" if ind.get("run") else "已停止"
+        temp = data.get("temperature", 0) / 100.0
+        flow = data.get("flow_rate", 0) / 100.0
         return ToolResult(
-            output=f"水冷机温度 {data['temperature']}°C，"
-                   f"流量 {data['flow_rate']} L/min，"
+            output=f"水冷机温度 {temp:.1f}°C，"
+                   f"流量 {flow:.2f} L/min，"
                    f"运行时间 {data.get('running_time', 0)}s，"
                    f"状态: {running}"
         )
@@ -169,7 +171,7 @@ class ChillerWaitStable(BaseTool):
                 )
             if not data.get("connected"):
                 return ToolResult(output="❌ 水冷机未连接", is_error=True)
-            temp = data["temperature"]
+            temp = data["temperature"] / 100.0
             last_temp = temp
             if abs(temp - arguments.target) <= arguments.tolerance:
                 elapsed = int(time.time() - start)
@@ -181,6 +183,6 @@ class ChillerWaitStable(BaseTool):
 
         return ToolResult(
             output=f"⚠️ 超时（{arguments.timeout_seconds}s）。"
-                   f"当前 {last_temp}°C，目标 {arguments.target}°C",
+                   f"当前 {last_temp:.1f}°C，目标 {arguments.target}°C",
             is_error=True
         )
