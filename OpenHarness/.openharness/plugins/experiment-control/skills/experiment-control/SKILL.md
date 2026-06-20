@@ -62,9 +62,14 @@ version: 0.2.0
 3. chiller_wait_stable(20)                 → 等待稳定
 4. detector_load_config()                  → 加载默认配置并连接
                                             （默认: /home/jfdaq/JF500K/JF500K-shine.config）
-5. detector_set_mode("baseline")           → 基线模式
-6. detector_set_param("exptime", "500")    → 设置曝光时间
-7. detector_set_param("frames", "200")     → 设置帧数
+5. detector_get_params                     → 展示当前全部参数
+6. ⚠️ 询问用户："当前参数：
+    曝光时间={exptime}μs, 帧周期={period}ms, 采集帧数={frames},
+    偏置电压={highvoltage}V, 时序模式={timing},
+    文件名={fname}, 存储路径={fpath}, 读出速度={readoutspeed}。
+    需要修改哪些参数？"
+    （如果用户在初始指令中已指定了参数值，跳过此步，直接应用用户指定的参数）
+7. detector_set_mode("baseline")           → 基线模式
 8. detector_run_acquisition(               → 采集基线
      mode="baseline")                       （自动记录基线状态和 raw 文件路径）
 9. ⚠️ 暂停，询问用户：                       X 光机联锁（强制暂停）
