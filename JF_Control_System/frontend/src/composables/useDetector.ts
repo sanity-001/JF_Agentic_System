@@ -93,7 +93,7 @@ export function useDetector() {
   }
 
   // 监听 WebSocket 的新格式消息: {displacement, chiller, detector, timestamp}
-  onMessage((msg) => {
+  onMessage(async (msg) => {
     // 新后端格式：{displacement, chiller, detector, timestamp}
     if (msg.detector) {
       const det = msg.detector
