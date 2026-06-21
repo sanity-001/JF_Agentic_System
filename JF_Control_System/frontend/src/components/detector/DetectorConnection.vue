@@ -25,7 +25,7 @@ const message = useMessage()
 
 // File browser
 const showBrowser = ref(false)
-const selectedConfigPath = ref('')
+const selectedConfigPath = ref('/home/jfdaq/JF500K/JF500K-shine.config')
 
 function onConfigSelected(path: string) {
   selectedConfigPath.value = path
@@ -66,21 +66,23 @@ const showShutdownModal = ref(false)
       <!-- Config file selection -->
       <div class="conn-section">
         <div class="section-label">配置文件</div>
-        <n-space>
-          <n-button size="medium" @click="showBrowser = true">
-            <template #icon><n-icon :component="FolderOpenOutline" :size="16" /></template>
-            浏览文件
+        <div class="config-row">
+          <n-input v-model:value="selectedConfigPath" size="small"
+            placeholder="/home/jfdaq/JF500K/JF500K-shine.config"
+            style="flex:1" />
+          <n-button size="small" @click="showBrowser = true">
+            <template #icon><n-icon :component="FolderOpenOutline" :size="14" /></template>
+            浏览
           </n-button>
-        </n-space>
-        <!-- Show selected path -->
-        <div v-if="selectedConfigPath" class="selected-path">
-          <span class="path-label">已选择：</span>
-          <span class="path-value">{{ selectedConfigPath }}</span>
-          <n-button size="small" type="primary" @click="confirmLoadConfig"
-            :disabled="status.connected">
+          <n-button size="small" type="primary"
+            :disabled="!selectedConfigPath || status.connected"
+            @click="confirmLoadConfig">
             <template #icon><n-icon :component="CheckmarkOutline" :size="14" /></template>
-            确认加载
+            加载
           </n-button>
+        </div>
+        <div v-if="selectedConfigPath && status.connected" class="loaded-info">
+          当前配置：{{ selectedConfigPath }}
         </div>
       </div>
 
@@ -177,27 +179,14 @@ const showShutdownModal = ref(false)
   color: #94A3B8;
   font-size: 13px;
 }
-.selected-path {
+.config-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px;
-  background: rgba(0, 212, 255, 0.06);
-  border: 1px solid rgba(0, 212, 255, 0.15);
-  border-radius: 8px;
-  margin-top: 4px;
 }
-.path-label {
-  color: #64748B;
-  font-size: 11px;
-  white-space: nowrap;
-}
-.path-value {
+.loaded-info {
   color: #00d4ff;
   font-size: 11px;
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  margin-top: 4px;
 }
 </style>
