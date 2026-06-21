@@ -128,7 +128,7 @@ const indicatorList = [
 
 // Serial config modal
 const showConfig = ref(false)
-const configPort = ref('/dev/ttyUSB0')
+const configPort = ref('/dev/ttyUSB1')
 const configBaudrate = ref(4800)
 const configSlaveAddr = ref(1)
 const configDataBits = ref(8)

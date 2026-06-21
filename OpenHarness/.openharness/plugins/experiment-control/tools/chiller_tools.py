@@ -35,7 +35,7 @@ class PIDInput(BaseModel):
 
 
 class ChillerConnectInput(BaseModel):
-    port: str = Field(default="/dev/ttyUSB0", description="串口设备路径")
+    port: str = Field(default="/dev/ttyUSB1", description="串口设备路径")
     baudrate: int = Field(default=4800, description="波特率")
     slave_address: int = Field(default=1, description="MODBUS 从站地址")
 
@@ -50,7 +50,7 @@ class WaitStableInput(BaseModel):
 
 class ChillerConnect(BaseTool):
     name = "chiller_connect"
-    description = "连接水冷机（MODBUS RTU）。默认串口 /dev/ttyUSB0，波特率 4800。"
+    description = "连接水冷机（MODBUS RTU）。默认串口 /dev/ttyUSB1，波特率 4800。"
     input_model = ChillerConnectInput
 
     async def execute(self, arguments: ChillerConnectInput,
