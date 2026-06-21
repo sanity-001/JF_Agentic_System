@@ -199,6 +199,33 @@ async def process_visual():
 
         raw_paths = [files[-1]]  # Use latest file
         result = _detector.process_acquisition_visual(raw_paths)
+
+        # Record acquisition to history (best-effort, don't fail the request)
+        import json as _json, datetime as _dt
+        try:
+            history_params = dict(params)
+            history_params["mode"] = _detector.acq_mode
+            record = {
+                "timestamp": _dt.datetime.now().isoformat(),
+                "params_json": _json.dumps(history_params),
+                "fpath": fpath,
+                "filename": fname,
+                "frames": int(params.get("frames", 0) or 0),
+                "period": str(params.get("period", "")),
+                "exptime": str(params.get("exptime", "")),
+                "duration_ms": 0,
+                "status": "success",
+                "error_message": None,
+                "raw_paths": _json.dumps(raw_paths),
+            }
+            from backend.detector.history_store import HistoryStore as _HS
+            hs = _HS()
+            await hs.init()
+            await hs.add(record)
+            await hs.close()
+        except Exception:
+            pass
+
         return result
     except HTTPException:
         raise
