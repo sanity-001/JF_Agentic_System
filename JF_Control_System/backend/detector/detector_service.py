@@ -345,6 +345,9 @@ class DetectorService:
         """加载配置文件即建立连接，不需要预先 connected"""
         if slsdet is None:
             raise RuntimeError("slsdet package not available")
+        # 启动 Receiver（必须在配置探测器之前，和 connect 保持一致）
+        if not self.receiver_running:
+            self.start_receiver()
         self._detector = slsdet.Detector()
         self._detector.config = path
         self._connected = True
