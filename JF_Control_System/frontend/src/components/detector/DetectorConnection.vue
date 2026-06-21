@@ -76,7 +76,7 @@ const showShutdownModal = ref(false)
         <div class="section-label">接收器</div>
         <div class="receiver-row">
           <span class="param-label">端口</span>
-          <n-input-number v-model:value="receiverPort" size="small" style="width: 80px;"
+          <n-input-number v-model:value="receiverPort" size="medium" style="width: 100px;"
             :disabled="status.receiver_running" :min="1" :max="65535" />
           <n-button v-if="!status.receiver_running" size="small" type="primary"
             @click="emit('startReceiver', receiverPort)">
