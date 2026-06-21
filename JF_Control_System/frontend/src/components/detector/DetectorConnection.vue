@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { NCard, NButton, NSpace, NModal, NInput, NInputNumber, NIcon, useMessage } from 'naive-ui'
 import {
   FolderOpenOutline, PlayOutline, StopOutline,
@@ -25,7 +25,15 @@ const message = useMessage()
 
 // File browser
 const showBrowser = ref(false)
-const selectedConfigPath = ref('/home/jfdaq/JF500K/JF500K-shine.config')
+const defaultConfigPath = '/home/jfdaq/JF500K/JF500K-shine.config'
+const selectedConfigPath = ref(defaultConfigPath)
+
+// 关机/断开后恢复默认路径
+watch(() => props.status.connected, (connected) => {
+  if (!connected) {
+    selectedConfigPath.value = defaultConfigPath
+  }
+})
 
 function onConfigSelected(path: string) {
   selectedConfigPath.value = path
@@ -68,7 +76,7 @@ const showShutdownModal = ref(false)
         <div class="section-label">配置文件</div>
         <div class="config-row">
           <n-input v-model:value="selectedConfigPath" size="small"
-            placeholder="/home/jfdaq/JF500K/JF500K-shine.config"
+            :placeholder="defaultConfigPath"
             style="flex:1" />
           <n-button size="small" @click="showBrowser = true">
             <template #icon><n-icon :component="FolderOpenOutline" :size="14" /></template>
