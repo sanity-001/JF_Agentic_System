@@ -208,11 +208,15 @@ async def process_visual():
 
 # ── Shutdown (added for Agent + frontend integration) ──
 
+import asyncio as _asyncio
+
+
 @router.post("/shutdown")
 async def shutdown():
     """Safe shutdown: stop acquisition, receiver, high voltage, power chip, free shared memory."""
     try:
-        _detector.shutdown()
+        loop = _asyncio.get_event_loop()
+        await loop.run_in_executor(None, _detector.shutdown)
         return CommandResponse(success=True, message="Detector shutdown complete")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
