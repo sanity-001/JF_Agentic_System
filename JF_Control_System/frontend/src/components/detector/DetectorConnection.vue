@@ -2,10 +2,9 @@
 import { ref } from 'vue'
 import { NCard, NButton, NSpace, NModal, NInput, NInputNumber, NIcon, useMessage } from 'naive-ui'
 import {
-  FolderOpenOutline, SaveOutline, PlayOutline, StopOutline,
-  CloseCircleOutline, PowerOutline
+  FolderOpenOutline, PlayOutline, StopOutline,
+  CloseCircleOutline, PowerOutline, CheckmarkOutline
 } from '@vicons/ionicons5'
-import { api } from '@/api/client'
 import FileBrowser from './FileBrowser.vue'
 import type { DetectorStatus } from '@/types/detector'
 
@@ -26,28 +25,19 @@ const message = useMessage()
 
 // File browser
 const showBrowser = ref(false)
+const selectedConfigPath = ref('')
 
 function onConfigSelected(path: string) {
-  emit('loadConfig', path)
+  selectedConfigPath.value = path
 }
 
-// Save config
-const showSaveModal = ref(false)
-const savePath = ref('/')
-
-function openSaveModal() {
-  savePath.value = '/'
-  showSaveModal.value = true
-}
-
-async function handleSaveConfig() {
-  try {
-    await api.saveConfig(savePath.value)
-    message.success('配置已保存')
-    showSaveModal.value = false
-  } catch (e: any) {
-    message.error(`保存失败: ${e.message}`)
+function confirmLoadConfig() {
+  if (!selectedConfigPath.value) {
+    message.warning('请先选择配置文件')
+    return
   }
+  emit('loadConfig', selectedConfigPath.value)
+  selectedConfigPath.value = ''
 }
 
 // Receiver
@@ -73,19 +63,25 @@ const showShutdownModal = ref(false)
     </template>
 
     <div class="conn-body">
-      <!-- Config file operations -->
+      <!-- Config file selection -->
       <div class="conn-section">
         <div class="section-label">配置文件</div>
         <n-space>
           <n-button size="medium" @click="showBrowser = true">
             <template #icon><n-icon :component="FolderOpenOutline" :size="16" /></template>
-            加载配置
-          </n-button>
-          <n-button size="medium" @click="openSaveModal">
-            <template #icon><n-icon :component="SaveOutline" :size="16" /></template>
-            保存配置
+            浏览文件
           </n-button>
         </n-space>
+        <!-- Show selected path -->
+        <div v-if="selectedConfigPath" class="selected-path">
+          <span class="path-label">已选择：</span>
+          <span class="path-value">{{ selectedConfigPath }}</span>
+          <n-button size="small" type="primary" @click="confirmLoadConfig"
+            :disabled="status.connected">
+            <template #icon><n-icon :component="CheckmarkOutline" :size="14" /></template>
+            确认加载
+          </n-button>
+        </div>
       </div>
 
       <!-- Receiver control -->
@@ -129,15 +125,6 @@ const showShutdownModal = ref(false)
     <!-- File Browser Modal -->
     <FileBrowser :show="showBrowser" @update:show="(v: boolean) => showBrowser = v"
       @select="onConfigSelected" />
-
-    <!-- Save Config Modal -->
-    <n-modal v-model:show="showSaveModal" title="保存配置文件" preset="dialog"
-      positive-text="保存" negative-text="取消" @positive-click="handleSaveConfig">
-      <n-space vertical size="small" style="padding: 8px 0;">
-        <span class="modal-label">保存路径:</span>
-        <n-input v-model:value="savePath" size="small" placeholder="/path/to/config.config" />
-      </n-space>
-    </n-modal>
 
     <!-- Shutdown Confirm Modal -->
     <n-modal v-model:show="showShutdownModal" title="确认关机" preset="dialog"
@@ -190,8 +177,27 @@ const showShutdownModal = ref(false)
   color: #94A3B8;
   font-size: 13px;
 }
-.modal-label {
-  color: #94A3B8;
-  font-size: 13px;
+.selected-path {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(0, 212, 255, 0.06);
+  border: 1px solid rgba(0, 212, 255, 0.15);
+  border-radius: 8px;
+  margin-top: 4px;
+}
+.path-label {
+  color: #64748B;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.path-value {
+  color: #00d4ff;
+  font-size: 11px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>
