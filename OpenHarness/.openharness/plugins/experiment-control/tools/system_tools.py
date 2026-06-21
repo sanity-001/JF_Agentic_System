@@ -27,6 +27,7 @@ _CONDA_PYTHON = os.environ.get(
     "JF_CONDA_PYTHON",
     os.path.expanduser("~/miniconda3/envs/slsdet9/bin/python")
 )
+_CONDA_BIN = os.path.dirname(_CONDA_PYTHON)
 
 
 class SystemCheckInput(BaseModel):
@@ -89,10 +90,13 @@ class SystemStartup(BaseTool):
         except Exception:
             pass
 
-        # Launch via conda env Python directly (avoids conda PATH issues)
+        # Launch via conda env Python with correct PATH (for slsReceiver etc.)
+        env = os.environ.copy()
+        env["PATH"] = f"{_CONDA_BIN}:{env.get('PATH', '')}"
         proc = subprocess.Popen(
             [_CONDA_PYTHON, "start.py"],
             cwd=JF_ROOT,
+            env=env,
             start_new_session=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
