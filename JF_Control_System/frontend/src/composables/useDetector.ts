@@ -101,6 +101,7 @@ export function useDetector() {
     if (msg.detector) {
       const det = msg.detector
       // 更新探测器状态（合并而非覆盖，保留 chip_version 等 WebSocket 不推送的字段）
+      const wasAcquiring = status.acquiring
       status.connected = det.connected ?? status.connected
       status.acquiring = det.acquiring ?? status.acquiring
       // 温湿度从消息中提取
@@ -109,6 +110,10 @@ export function useDetector() {
       }
       if (det.adc_temp != null) {
         temperatures.value = { ...temperatures.value, adc: [det.adc_temp] }
+      }
+      // 采集开始（Agent 或其他来源触发）→ 启动进度条
+      if (det.acquiring && !wasAcquiring && !progress.value.acquiring) {
+        _startLocalProgress()
       }
       // 采集完成 → 停止进度条 + 获取图像 + 刷新历史
       if (!det.acquiring && progress.value.acquiring) {
@@ -120,7 +125,6 @@ export function useDetector() {
             hasBaseline.value = vd.baseline !== null
           }
         } catch { /* best-effort */ }
-        // 刷新历史记录
         fetchHistory().catch(() => {})
       }
       error.value = null
