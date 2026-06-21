@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 BASE_URL = os.environ.get("JF_CONTROL_API_URL", "http://localhost:8000")
 _http_session: aiohttp.ClientSession | None = None
 
-def __get_session():
+def ___get_session():
     global _http_session
     if _http_session is None or _http_session.closed:
         _http_session = aiohttp.ClientSession()
@@ -59,10 +59,11 @@ class AnalyzeInput(BaseModel):
 class ProcessingReadFrame(BaseTool):
     name = "processing_read_frame"
     description = "读取单帧图像，返回统计信息（min/max/mean/std）+ base64 图像"
+    input_model = FrameReadInput
 
     async def execute(self, arguments: FrameReadInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         async with session.post(
             f"{BASE_URL}/api/processing/frame/read",
             json={"file_path": arguments.file_path,
@@ -85,10 +86,11 @@ class ProcessingReadFrame(BaseTool):
 class ProcessingAverageFrames(BaseTool):
     name = "processing_average_frames"
     description = "计算帧范围的平均帧，可选扣除基线"
+    input_model = FrameAverageInput
 
     async def execute(self, arguments: FrameAverageInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         async with session.post(
             f"{BASE_URL}/api/processing/frame/average",
             json={"file_path": arguments.file_path,
@@ -118,10 +120,11 @@ class ProcessingAverageFrames(BaseTool):
 class ProcessingFitPixel(BaseTool):
     name = "processing_fit_pixel"
     description = "对单个像素进行高斯+erfc 拟合，返回 Gain (ADU/keV)、噪声峰、信号峰"
+    input_model = PixelFitInput
 
     async def execute(self, arguments: PixelFitInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         async with session.post(
             f"{BASE_URL}/api/processing/pixel/fit",
             json={"file_path": arguments.file_path,
@@ -150,10 +153,11 @@ class ProcessingFitPixel(BaseTool):
 class ProcessingComputeGainmap(BaseTool):
     name = "processing_compute_gainmap"
     description = "计算全传感器增益图（ADU/keV），返回统计信息"
+    input_model = MapInput
 
     async def execute(self, arguments: MapInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         async with session.post(
             f"{BASE_URL}/api/processing/gainmap/compute",
             json={"file_path": arguments.file_path,
@@ -177,10 +181,11 @@ class ProcessingComputeGainmap(BaseTool):
 class ProcessingComputeNoisemap(BaseTool):
     name = "processing_compute_noisemap"
     description = "计算全传感器噪声峰位置图"
+    input_model = MapInput
 
     async def execute(self, arguments: MapInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         async with session.post(
             f"{BASE_URL}/api/processing/noisemap/compute",
             json={"file_path": arguments.file_path,
@@ -200,10 +205,11 @@ class ProcessingComputeNoisemap(BaseTool):
 class ProcessingComputeStdmap(BaseTool):
     name = "processing_compute_stdmap"
     description = "计算每像素时间序列标准差图"
+    input_model = MapInput
 
     async def execute(self, arguments: MapInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         async with session.post(
             f"{BASE_URL}/api/processing/stdmap/compute",
             json={"file_path": arguments.file_path,
@@ -229,10 +235,11 @@ class ProcessingAnalyzeAcquisition(BaseTool):
         "自动使用最近一次采集生成的 raw 文件。"
         "也可手动指定文件路径。"
     )
+    input_model = AnalyzeInput
 
     async def execute(self, arguments: AnalyzeInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         results = []
 
         # Auto-detect file path from last acquisition if not provided

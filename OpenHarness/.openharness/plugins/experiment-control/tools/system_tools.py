@@ -13,7 +13,7 @@ from pydantic import BaseModel
 BASE_URL = os.environ.get("JF_CONTROL_API_URL", "http://localhost:8000")
 _http_session: aiohttp.ClientSession | None = None
 
-def __get_session():
+def ___get_session():
     global _http_session
     if _http_session is None or _http_session.closed:
         _http_session = aiohttp.ClientSession()
@@ -33,10 +33,11 @@ class SystemCheckInput(BaseModel):
 class SystemCheck(BaseTool):
     name = "system_check"
     description = "检查实验系统状态：后端 (:8000) 和前端 (:5173) 是否在线"
+    input_model = SystemCheckInput
 
     async def execute(self, arguments: SystemCheckInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         results = {}
 
         # Check backend
@@ -68,10 +69,11 @@ class SystemStartupInput(BaseModel):
 class SystemStartup(BaseTool):
     name = "system_startup"
     description = "一键启动实验系统：后端 (python start.py via conda slsdet9) 和前端 (Vite :5173)。等待就绪后返回。"
+    input_model = SystemStartupInput
 
     async def execute(self, arguments: SystemStartupInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
 
         # Check if already running
         try:
@@ -121,6 +123,7 @@ class SystemShutdownInput(BaseModel):
 class SystemShutdown(BaseTool):
     name = "system_shutdown"
     description = "停止实验系统（后端 + 前端进程）"
+    input_model = SystemShutdownInput
 
     async def execute(self, arguments: SystemShutdownInput,
                       context: ToolExecutionContext) -> ToolResult:

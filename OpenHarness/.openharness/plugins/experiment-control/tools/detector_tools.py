@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 BASE_URL = os.environ.get("JF_CONTROL_API_URL", "http://localhost:8000")
 _http_session: aiohttp.ClientSession | None = None
 
-def __get_session():
+def ___get_session():
     global _http_session
     if _http_session is None or _http_session.closed:
         _http_session = aiohttp.ClientSession()
@@ -70,10 +70,11 @@ class RunAcquisitionInput(BaseModel):
 class DetectorGetStatus(BaseTool):
     name = "detector_get_status"
     description = "查询探测器连接状态、采集状态、芯片版本"
+    input_model = NoInput
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         async with session.get(f"{BASE_URL}/api/detector/status") as resp:
             data = await resp.json()
         if not data.get("connected"):
@@ -88,10 +89,11 @@ class DetectorGetStatus(BaseTool):
 class DetectorGetParams(BaseTool):
     name = "detector_get_params"
     description = "查询探测器当前所有参数（含 fpath/fname，用于确定 raw 文件位置）"
+    input_model = NoInput
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         async with session.get(f"{BASE_URL}/api/detector/params") as resp:
             data = await resp.json()
         if resp.status != 200:
@@ -106,10 +108,11 @@ class DetectorGetParams(BaseTool):
 class DetectorGetTemperatures(BaseTool):
     name = "detector_get_temperatures"
     description = "读取探测器 FPGA 和 ADC 温度"
+    input_model = NoInput
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         async with session.get(f"{BASE_URL}/api/detector/temperatures") as resp:
             data = await resp.json()
         if resp.status != 200:
@@ -125,10 +128,11 @@ class DetectorGetTemperatures(BaseTool):
 class DetectorBrowseFiles(BaseTool):
     name = "detector_browse_files"
     description = "浏览服务器上的文件和目录，用于查找配置文件或 raw 数据文件"
+    input_model = BrowseFilesInput
 
     async def execute(self, arguments: BrowseFilesInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         async with session.get(
             f"{BASE_URL}/api/detector/browse",
             params={"path": arguments.path}
@@ -157,10 +161,11 @@ class DetectorLoadConfig(BaseTool):
         f"加载本地 .config 配置文件并自动连接探测器。"
         f"默认加载 {DEFAULT_CONFIG_PATH}，不传路径则使用默认配置。"
     )
+    input_model = LoadConfigInput
 
     async def execute(self, arguments: LoadConfigInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         async with session.post(
             f"{BASE_URL}/api/detector/load_config",
             json={"path": arguments.path}
@@ -181,10 +186,11 @@ class DetectorLoadConfig(BaseTool):
 class DetectorConnect(BaseTool):
     name = "detector_connect"
     description = "不使用配置文件时，通过 hostname + 参数直接连接探测器"
+    input_model = DetectorConnectInput
 
     async def execute(self, arguments: DetectorConnectInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         async with session.post(
             f"{BASE_URL}/api/detector/connect",
             json={"hostname": arguments.hostname,
@@ -201,10 +207,11 @@ class DetectorConnect(BaseTool):
 class DetectorDisconnect(BaseTool):
     name = "detector_disconnect"
     description = "断开探测器连接"
+    input_model = NoInput
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         async with session.post(f"{BASE_URL}/api/detector/disconnect") as resp:
             data = await resp.json()
         if resp.status == 200:
@@ -217,10 +224,11 @@ class DetectorDisconnect(BaseTool):
 class DetectorSetParam(BaseTool):
     name = "detector_set_param"
     description = "设置单个探测器参数（exptime, frames, period, highvoltage 等）"
+    input_model = SetParamInput
 
     async def execute(self, arguments: SetParamInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         async with session.post(
             f"{BASE_URL}/api/detector/params",
             json={"key": arguments.key, "value": arguments.value}
@@ -237,6 +245,7 @@ class DetectorSetParam(BaseTool):
 class DetectorSetMode(BaseTool):
     name = "detector_set_mode"
     description = '设置采集模式："baseline"（基线采集，结果保存为基线）或 "signal"（信号采集，需先有基线）'
+    input_model = SetModeInput
 
     async def execute(self, arguments: SetModeInput,
                       context: ToolExecutionContext) -> ToolResult:
@@ -245,7 +254,7 @@ class DetectorSetMode(BaseTool):
                 output=f"❌ 无效模式: {arguments.mode}，仅支持 baseline/signal",
                 is_error=True
             )
-        session = _get_session()
+        session = __get_session()
         async with session.post(
             f"{BASE_URL}/api/detector/mode",
             json={"mode": arguments.mode}
@@ -263,10 +272,11 @@ class DetectorSetMode(BaseTool):
 class DetectorStartAcquisition(BaseTool):
     name = "detector_start_acquisition"
     description = "启动探测器采集（非阻塞）。需先加载配置并设置参数。"
+    input_model = NoInput
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         async with session.post(f"{BASE_URL}/api/detector/acquire/start") as resp:
             data = await resp.json()
         if resp.status == 200:
@@ -278,10 +288,11 @@ class DetectorStartAcquisition(BaseTool):
 class DetectorStopAcquisition(BaseTool):
     name = "detector_stop_acquisition"
     description = "停止/中断探测器采集"
+    input_model = NoInput
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         async with session.post(f"{BASE_URL}/api/detector/acquire/stop") as resp:
             data = await resp.json()
         if resp.status == 200:
@@ -300,10 +311,11 @@ class DetectorRunAcquisition(BaseTool):
         f"默认使用配置文件 {DEFAULT_CONFIG_PATH}。"
         "baseline 模式会自动记录基线状态，signal 模式会检查是否已有基线。"
     )
+    input_model = RunAcquisitionInput
 
     async def execute(self, arguments: RunAcquisitionInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
 
         # 0. Check baseline prerequisite for signal mode
         if arguments.mode == "signal":
@@ -420,10 +432,11 @@ class DetectorRunAcquisition(BaseTool):
 class DetectorShutdown(BaseTool):
     name = "detector_shutdown"
     description = "安全关机：停止采集→停receiver→降压→关powerchip→释放共享内存"
+    input_model = NoInput
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         async with session.post(f"{BASE_URL}/api/detector/shutdown") as resp:
             data = await resp.json()
         if resp.status == 200:

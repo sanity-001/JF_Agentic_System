@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 BASE_URL = os.environ.get("JF_CONTROL_API_URL", "http://localhost:8000")
 _http_session: aiohttp.ClientSession | None = None
 
-def __get_session():
+def ___get_session():
     global _http_session
     if _http_session is None or _http_session.closed:
         _http_session = aiohttp.ClientSession()
@@ -45,10 +45,11 @@ class WaitStableInput(BaseModel):
 class ChillerGetStatus(BaseTool):
     name = "chiller_get_status"
     description = "查询水冷机当前状态：温度、流量、运行时间、指示灯状态"
+    input_model = NoInput
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         async with session.get(f"{BASE_URL}/api/chiller/status") as resp:
             data = await resp.json()
         if resp.status != 200:
@@ -71,10 +72,11 @@ class ChillerGetStatus(BaseTool):
 class ChillerGetParams(BaseTool):
     name = "chiller_get_params"
     description = "查询水冷机当前参数：目标温度、报警温度、PID 设置"
+    input_model = NoInput
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         async with session.get(f"{BASE_URL}/api/chiller/params") as resp:
             data = await resp.json()
         if resp.status != 200:
@@ -94,10 +96,11 @@ class ChillerGetParams(BaseTool):
 class ChillerSetTemperature(BaseTool):
     name = "chiller_set_temperature"
     description = "设置水冷机目标温度（°C），范围 15~25"
+    input_model = TemperatureInput
 
     async def execute(self, arguments: TemperatureInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         async with session.post(
             f"{BASE_URL}/api/chiller/setpoint",
             json={"value": arguments.value}
@@ -114,10 +117,11 @@ class ChillerSetTemperature(BaseTool):
 class ChillerSetPID(BaseTool):
     name = "chiller_set_pid"
     description = "设置水冷机 PID 参数（P=比例带, I=积分时间, D=微分时间）"
+    input_model = PIDInput
 
     async def execute(self, arguments: PIDInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         async with session.post(
             f"{BASE_URL}/api/chiller/pid",
             json={"p": arguments.p, "i": arguments.i, "d": arguments.d}
@@ -134,10 +138,11 @@ class ChillerSetPID(BaseTool):
 class ChillerStart(BaseTool):
     name = "chiller_start"
     description = "启动水冷机"
+    input_model = NoInput
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         async with session.post(f"{BASE_URL}/api/chiller/start") as resp:
             data = await resp.json()
         if resp.status == 200:
@@ -149,10 +154,11 @@ class ChillerStart(BaseTool):
 class ChillerStop(BaseTool):
     name = "chiller_stop"
     description = "停止水冷机"
+    input_model = NoInput
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         async with session.post(f"{BASE_URL}/api/chiller/stop") as resp:
             data = await resp.json()
         if resp.status == 200:
@@ -164,10 +170,11 @@ class ChillerStop(BaseTool):
 class ChillerWaitStable(BaseTool):
     name = "chiller_wait_stable"
     description = "等待水冷机温度稳定到目标值 ± tolerance 范围内。默认偏差 0.3°C，最长 600s。"
+    input_model = WaitStableInput
 
     async def execute(self, arguments: WaitStableInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         start = time.time()
         last_temp = None
         while time.time() - start < arguments.timeout_seconds:

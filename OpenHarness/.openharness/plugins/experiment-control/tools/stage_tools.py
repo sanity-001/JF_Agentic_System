@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 BASE_URL = os.environ.get("JF_CONTROL_API_URL", "http://localhost:8000")
 _http_session: aiohttp.ClientSession | None = None
 
-def __get_session():
+def ___get_session():
     global _http_session
     if _http_session is None or _http_session.closed:
         _http_session = aiohttp.ClientSession()
@@ -43,10 +43,11 @@ class ScanInput(BaseModel):
 class StageGetStatus(BaseTool):
     name = "stage_get_status"
     description = "查询位移台当前位置、原点状态、扫描状态"
+    input_model = NoInput
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         async with session.get(
             f"{BASE_URL}/api/displacement/status?axis=1"
         ) as resp:
@@ -70,10 +71,11 @@ class StageGetStatus(BaseTool):
 class StageMoveAbsolute(BaseTool):
     name = "stage_move_absolute"
     description = "移动位移台到绝对位置"
+    input_model = MoveAbsoluteInput
 
     async def execute(self, arguments: MoveAbsoluteInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         async with session.post(
             f"{BASE_URL}/api/displacement/move/absolute",
             json={"axis": arguments.axis, "position": arguments.position,
@@ -91,10 +93,11 @@ class StageMoveAbsolute(BaseTool):
 class StageMoveRelative(BaseTool):
     name = "stage_move_relative"
     description = "移动位移台相对偏移量"
+    input_model = MoveRelativeInput
 
     async def execute(self, arguments: MoveRelativeInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         async with session.post(
             f"{BASE_URL}/api/displacement/move/relative",
             json={"axis": arguments.axis, "offset": arguments.offset,
@@ -110,10 +113,11 @@ class StageMoveRelative(BaseTool):
 class StageOriginReturn(BaseTool):
     name = "stage_origin_return"
     description = "位移台返回原点"
+    input_model = NoInput
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         async with session.post(
             f"{BASE_URL}/api/displacement/origin",
             json={"axis": 1, "speed_table": 0, "response_mode": 0}
@@ -128,10 +132,11 @@ class StageOriginReturn(BaseTool):
 class StageStartScan(BaseTool):
     name = "stage_start_scan"
     description = "启动位移台扫描。步数 > 1000 时会询问确认。"
+    input_model = ScanInput
 
     async def execute(self, arguments: ScanInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         async with session.post(
             f"{BASE_URL}/api/displacement/scan/start",
             json={"axis": arguments.axis, "direction": arguments.direction,
@@ -151,10 +156,11 @@ class StageStartScan(BaseTool):
 class StageStop(BaseTool):
     name = "stage_stop"
     description = "紧急停止位移台（所有轴）"
+    input_model = NoInput
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = _get_session()
+        session = __get_session()
         async with session.post(
             f"{BASE_URL}/api/displacement/stop",
             json={"axis": 0, "mode": 1}
