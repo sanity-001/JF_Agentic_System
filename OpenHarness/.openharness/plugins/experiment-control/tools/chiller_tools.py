@@ -1,11 +1,20 @@
 """Water chiller control tools."""
 import asyncio
+import os
 import time
 
+import aiohttp
 from openharness.tools.base import BaseTool, ToolExecutionContext, ToolResult
 from pydantic import BaseModel, Field
 
-from . import BASE_URL, get_session
+BASE_URL = os.environ.get("JF_CONTROL_API_URL", "http://localhost:8000")
+_http_session: aiohttp.ClientSession | None = None
+
+def __get_session():
+    global _http_session
+    if _http_session is None or _http_session.closed:
+        _http_session = aiohttp.ClientSession()
+    return _http_session
 
 
 # ── Input models ──
@@ -39,7 +48,7 @@ class ChillerGetStatus(BaseTool):
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         async with session.get(f"{BASE_URL}/api/chiller/status") as resp:
             data = await resp.json()
         if resp.status != 200:
@@ -65,7 +74,7 @@ class ChillerGetParams(BaseTool):
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         async with session.get(f"{BASE_URL}/api/chiller/params") as resp:
             data = await resp.json()
         if resp.status != 200:
@@ -88,7 +97,7 @@ class ChillerSetTemperature(BaseTool):
 
     async def execute(self, arguments: TemperatureInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         async with session.post(
             f"{BASE_URL}/api/chiller/setpoint",
             json={"value": arguments.value}
@@ -108,7 +117,7 @@ class ChillerSetPID(BaseTool):
 
     async def execute(self, arguments: PIDInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         async with session.post(
             f"{BASE_URL}/api/chiller/pid",
             json={"p": arguments.p, "i": arguments.i, "d": arguments.d}
@@ -128,7 +137,7 @@ class ChillerStart(BaseTool):
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         async with session.post(f"{BASE_URL}/api/chiller/start") as resp:
             data = await resp.json()
         if resp.status == 200:
@@ -143,7 +152,7 @@ class ChillerStop(BaseTool):
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         async with session.post(f"{BASE_URL}/api/chiller/stop") as resp:
             data = await resp.json()
         if resp.status == 200:
@@ -158,7 +167,7 @@ class ChillerWaitStable(BaseTool):
 
     async def execute(self, arguments: WaitStableInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         start = time.time()
         last_temp = None
         while time.time() - start < arguments.timeout_seconds:

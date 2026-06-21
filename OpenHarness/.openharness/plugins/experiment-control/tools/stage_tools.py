@@ -1,8 +1,18 @@
 """Displacement stage control tools."""
+import os
+
+import aiohttp
 from openharness.tools.base import BaseTool, ToolExecutionContext, ToolResult
 from pydantic import BaseModel, Field
 
-from . import BASE_URL, get_session
+BASE_URL = os.environ.get("JF_CONTROL_API_URL", "http://localhost:8000")
+_http_session: aiohttp.ClientSession | None = None
+
+def __get_session():
+    global _http_session
+    if _http_session is None or _http_session.closed:
+        _http_session = aiohttp.ClientSession()
+    return _http_session
 
 
 class NoInput(BaseModel):
@@ -36,7 +46,7 @@ class StageGetStatus(BaseTool):
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         async with session.get(
             f"{BASE_URL}/api/displacement/status?axis=1"
         ) as resp:
@@ -63,7 +73,7 @@ class StageMoveAbsolute(BaseTool):
 
     async def execute(self, arguments: MoveAbsoluteInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         async with session.post(
             f"{BASE_URL}/api/displacement/move/absolute",
             json={"axis": arguments.axis, "position": arguments.position,
@@ -84,7 +94,7 @@ class StageMoveRelative(BaseTool):
 
     async def execute(self, arguments: MoveRelativeInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         async with session.post(
             f"{BASE_URL}/api/displacement/move/relative",
             json={"axis": arguments.axis, "offset": arguments.offset,
@@ -103,7 +113,7 @@ class StageOriginReturn(BaseTool):
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         async with session.post(
             f"{BASE_URL}/api/displacement/origin",
             json={"axis": 1, "speed_table": 0, "response_mode": 0}
@@ -121,7 +131,7 @@ class StageStartScan(BaseTool):
 
     async def execute(self, arguments: ScanInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         async with session.post(
             f"{BASE_URL}/api/displacement/scan/start",
             json={"axis": arguments.axis, "direction": arguments.direction,
@@ -144,7 +154,7 @@ class StageStop(BaseTool):
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         async with session.post(
             f"{BASE_URL}/api/displacement/stop",
             json={"axis": 0, "mode": 1}

@@ -5,10 +5,19 @@ import signal
 import subprocess
 import sys
 
+import aiohttp
 from openharness.tools.base import BaseTool, ToolExecutionContext, ToolResult
 from pydantic import BaseModel
 
-from . import BASE_URL, get_session
+# ── Shared HTTP (inlined — plugin loader doesn't support relative imports) ──
+BASE_URL = os.environ.get("JF_CONTROL_API_URL", "http://localhost:8000")
+_http_session: aiohttp.ClientSession | None = None
+
+def __get_session():
+    global _http_session
+    if _http_session is None or _http_session.closed:
+        _http_session = aiohttp.ClientSession()
+    return _http_session
 
 JF_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..",
@@ -27,7 +36,7 @@ class SystemCheck(BaseTool):
 
     async def execute(self, arguments: SystemCheckInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         results = {}
 
         # Check backend
@@ -62,7 +71,7 @@ class SystemStartup(BaseTool):
 
     async def execute(self, arguments: SystemStartupInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
 
         # Check if already running
         try:

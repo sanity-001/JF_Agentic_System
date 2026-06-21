@@ -4,10 +4,18 @@ import glob
 import os
 import time
 
+import aiohttp
 from openharness.tools.base import BaseTool, ToolExecutionContext, ToolResult
 from pydantic import BaseModel, Field
 
-from . import BASE_URL, get_session
+BASE_URL = os.environ.get("JF_CONTROL_API_URL", "http://localhost:8000")
+_http_session: aiohttp.ClientSession | None = None
+
+def __get_session():
+    global _http_session
+    if _http_session is None or _http_session.closed:
+        _http_session = aiohttp.ClientSession()
+    return _http_session
 
 # ── Default config for 500K detector ──
 DEFAULT_CONFIG_PATH = "/home/jfdaq/JF500K/JF500K-shine.config"
@@ -65,7 +73,7 @@ class DetectorGetStatus(BaseTool):
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         async with session.get(f"{BASE_URL}/api/detector/status") as resp:
             data = await resp.json()
         if not data.get("connected"):
@@ -83,7 +91,7 @@ class DetectorGetParams(BaseTool):
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         async with session.get(f"{BASE_URL}/api/detector/params") as resp:
             data = await resp.json()
         if resp.status != 200:
@@ -101,7 +109,7 @@ class DetectorGetTemperatures(BaseTool):
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         async with session.get(f"{BASE_URL}/api/detector/temperatures") as resp:
             data = await resp.json()
         if resp.status != 200:
@@ -120,7 +128,7 @@ class DetectorBrowseFiles(BaseTool):
 
     async def execute(self, arguments: BrowseFilesInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         async with session.get(
             f"{BASE_URL}/api/detector/browse",
             params={"path": arguments.path}
@@ -152,7 +160,7 @@ class DetectorLoadConfig(BaseTool):
 
     async def execute(self, arguments: LoadConfigInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         async with session.post(
             f"{BASE_URL}/api/detector/load_config",
             json={"path": arguments.path}
@@ -176,7 +184,7 @@ class DetectorConnect(BaseTool):
 
     async def execute(self, arguments: DetectorConnectInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         async with session.post(
             f"{BASE_URL}/api/detector/connect",
             json={"hostname": arguments.hostname,
@@ -196,7 +204,7 @@ class DetectorDisconnect(BaseTool):
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         async with session.post(f"{BASE_URL}/api/detector/disconnect") as resp:
             data = await resp.json()
         if resp.status == 200:
@@ -212,7 +220,7 @@ class DetectorSetParam(BaseTool):
 
     async def execute(self, arguments: SetParamInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         async with session.post(
             f"{BASE_URL}/api/detector/params",
             json={"key": arguments.key, "value": arguments.value}
@@ -237,7 +245,7 @@ class DetectorSetMode(BaseTool):
                 output=f"❌ 无效模式: {arguments.mode}，仅支持 baseline/signal",
                 is_error=True
             )
-        session = get_session()
+        session = _get_session()
         async with session.post(
             f"{BASE_URL}/api/detector/mode",
             json={"mode": arguments.mode}
@@ -258,7 +266,7 @@ class DetectorStartAcquisition(BaseTool):
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         async with session.post(f"{BASE_URL}/api/detector/acquire/start") as resp:
             data = await resp.json()
         if resp.status == 200:
@@ -273,7 +281,7 @@ class DetectorStopAcquisition(BaseTool):
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         async with session.post(f"{BASE_URL}/api/detector/acquire/stop") as resp:
             data = await resp.json()
         if resp.status == 200:
@@ -295,7 +303,7 @@ class DetectorRunAcquisition(BaseTool):
 
     async def execute(self, arguments: RunAcquisitionInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
 
         # 0. Check baseline prerequisite for signal mode
         if arguments.mode == "signal":
@@ -415,7 +423,7 @@ class DetectorShutdown(BaseTool):
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         async with session.post(f"{BASE_URL}/api/detector/shutdown") as resp:
             data = await resp.json()
         if resp.status == 200:

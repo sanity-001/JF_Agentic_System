@@ -1,10 +1,19 @@
 """Data processing tools — frame reading, pixel fitting, gain/noise/std maps."""
+import os
 from typing import Optional
 
+import aiohttp
 from openharness.tools.base import BaseTool, ToolExecutionContext, ToolResult
 from pydantic import BaseModel, Field
 
-from . import BASE_URL, get_session
+BASE_URL = os.environ.get("JF_CONTROL_API_URL", "http://localhost:8000")
+_http_session: aiohttp.ClientSession | None = None
+
+def __get_session():
+    global _http_session
+    if _http_session is None or _http_session.closed:
+        _http_session = aiohttp.ClientSession()
+    return _http_session
 
 
 class NoInput(BaseModel):
@@ -53,7 +62,7 @@ class ProcessingReadFrame(BaseTool):
 
     async def execute(self, arguments: FrameReadInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         async with session.post(
             f"{BASE_URL}/api/processing/frame/read",
             json={"file_path": arguments.file_path,
@@ -79,7 +88,7 @@ class ProcessingAverageFrames(BaseTool):
 
     async def execute(self, arguments: FrameAverageInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         async with session.post(
             f"{BASE_URL}/api/processing/frame/average",
             json={"file_path": arguments.file_path,
@@ -112,7 +121,7 @@ class ProcessingFitPixel(BaseTool):
 
     async def execute(self, arguments: PixelFitInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         async with session.post(
             f"{BASE_URL}/api/processing/pixel/fit",
             json={"file_path": arguments.file_path,
@@ -144,7 +153,7 @@ class ProcessingComputeGainmap(BaseTool):
 
     async def execute(self, arguments: MapInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         async with session.post(
             f"{BASE_URL}/api/processing/gainmap/compute",
             json={"file_path": arguments.file_path,
@@ -171,7 +180,7 @@ class ProcessingComputeNoisemap(BaseTool):
 
     async def execute(self, arguments: MapInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         async with session.post(
             f"{BASE_URL}/api/processing/noisemap/compute",
             json={"file_path": arguments.file_path,
@@ -194,7 +203,7 @@ class ProcessingComputeStdmap(BaseTool):
 
     async def execute(self, arguments: MapInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         async with session.post(
             f"{BASE_URL}/api/processing/stdmap/compute",
             json={"file_path": arguments.file_path,
@@ -223,7 +232,7 @@ class ProcessingAnalyzeAcquisition(BaseTool):
 
     async def execute(self, arguments: AnalyzeInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = get_session()
+        session = _get_session()
         results = []
 
         # Auto-detect file path from last acquisition if not provided
