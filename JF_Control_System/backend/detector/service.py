@@ -71,6 +71,20 @@ class DetectorService:
     def is_4m(self) -> bool:
         return self._original.is_4m
 
+    def shutdown(self):
+        return self._original.shutdown()
+
+    @property
+    def acq_mode(self) -> str:
+        return self._original.acq_mode
+
+    @acq_mode.setter
+    def acq_mode(self, mode: str):
+        self._original.acq_mode = mode
+
+    def process_acquisition_visual(self, raw_paths: list):
+        return self._original.process_acquisition_visual(raw_paths)
+
     def get_history(self, limit: int = 50, offset: int = 0):
         import asyncio
         import concurrent.futures

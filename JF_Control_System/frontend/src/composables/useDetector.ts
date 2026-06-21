@@ -71,6 +71,9 @@ export function useDetector() {
     _pollTimer = setInterval(async () => {
       if (!status.connected) return
       try {
+        // 状态（含 chip_version、receiver_running）
+        const s = await api.getStatus()
+        if (s) Object.assign(status, s)
         // 参数
         const p = await api.getParams()
         if (p && Object.keys(p).length > 0) {
