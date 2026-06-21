@@ -12,7 +12,7 @@
       :bordered="false"
       size="small"
       virtual-scroll
-      max-height="300"
+      max-height="400"
     />
   </n-card>
 </template>
@@ -32,48 +32,19 @@ const statusColor: Record<string, any> = {
   aborted: { type: 'warning' },
 }
 
-function parseRawPaths(rawPathsStr?: string): string[] {
-  if (!rawPathsStr) return []
-  try {
-    return JSON.parse(rawPathsStr)
-  } catch {
-    return []
-  }
-}
-
-function formatFilename(record: HistoryRecord): string {
-  const paths = parseRawPaths(record.raw_paths)
-  if (paths.length <= 1) return record.filename || '-'
-  const first = paths[0].split('/').pop() || ''
-  const last = paths[paths.length - 1].split('/').pop() || ''
-  const m = first.match(/^(.+)_d(\d+)_(.+)$/)
-  const lm = last.match(/_d(\d+)_/)
-  if (m && lm) {
-    return `${m[1]}_d[${m[2]}-${lm[1]}]_${m[3]}`
-  }
-  return record.filename || '-'
-}
-
-function filenameTooltip(record: HistoryRecord): string {
-  const paths = parseRawPaths(record.raw_paths)
-  if (paths.length <= 1) return ''
-  return paths.map(p => p.split('/').pop()).join('\n')
+function formatFilename(rawPathsStr?: string): string {
+  const paths: string[] = rawPathsStr ? (() => { try { return JSON.parse(rawPathsStr) } catch { return [] } })() : []
+  if (paths.length === 0) return '-'
+  // Extract just the filename from each path, e.g. "JF500K-shine_d0_f0_5.raw"
+  return paths.map(p => p.split('/').pop() || p).join(', ')
 }
 
 const columns: DataTableColumns<HistoryRecord> = [
   { title: '#', key: 'id', width: 40 },
-  { title: '时间', key: 'timestamp', width: 140 },
+  { title: '时间', key: 'timestamp', width: 150 },
   { title: '帧数', key: 'frames', width: 60 },
-  { title: '文件名', key: 'filename', width: 170, ellipsis: { tooltip: true },
-    render(row) {
-      const paths = parseRawPaths(row.raw_paths)
-      if (paths.length <= 1) return row.filename || '-'
-      return h(NTooltip, { trigger: 'hover' }, {
-        trigger: () => h('span', { style: { cursor: 'pointer' } }, formatFilename(row)),
-        default: () => h('div', { style: { whiteSpace: 'pre-line', fontSize: '12px' } },
-          filenameTooltip(row)),
-      })
-    }
+  { title: '文件名', key: 'raw_paths', ellipsis: { tooltip: true },
+    render(row) { return formatFilename(row.raw_paths) }
   },
   { title: '状态', key: 'status', width: 55,
     render(row) {
@@ -82,7 +53,6 @@ const columns: DataTableColumns<HistoryRecord> = [
               row.status === 'failed' ? '失败' : '中止')
     }
   },
-  { title: '路径', key: 'fpath', ellipsis: { tooltip: true } },
 ]
 </script>
 

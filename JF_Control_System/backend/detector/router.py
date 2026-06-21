@@ -206,7 +206,7 @@ async def process_visual():
             history_params = dict(params)
             history_params["mode"] = _detector.acq_mode
             record = {
-                "timestamp": _dt.datetime.now().isoformat(),
+                "timestamp": _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "params_json": _json.dumps(history_params),
                 "fpath": fpath,
                 "filename": fname,

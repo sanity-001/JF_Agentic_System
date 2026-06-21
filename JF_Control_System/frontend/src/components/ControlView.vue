@@ -281,7 +281,7 @@ onMounted(() => {
 }
 
 .history-content {
-  width: 700px;
+  width: 800px;
   height: 100%;
   overflow: hidden;
   flex-shrink: 0;
