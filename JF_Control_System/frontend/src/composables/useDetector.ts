@@ -152,7 +152,8 @@ export function useDetector() {
 
   async function startAcquisition(mode: 'baseline' | 'signal' = 'signal') {
     acqMode.value = mode
-    await api.acquireStart(mode)
+    await api.setMode(mode)
+    await api.acquireStart()
   }
 
   function startLocalProgress() {
@@ -167,11 +168,10 @@ export function useDetector() {
   async function clearBaseline() {
     visualData.value = null
     hasBaseline.value = false
-    await api.clearBaseline()
   }
 
-  async function toggleExpand(expand: boolean) {
-    await api.visualExpand(expand)
+  async function toggleExpand(_expand: boolean) {
+    // expand toggle — backend endpoint pending
   }
 
   async function fetchHistory(limit = 20, offset = 0) {
