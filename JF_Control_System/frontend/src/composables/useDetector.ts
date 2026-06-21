@@ -63,14 +63,52 @@ export function useDetector() {
     progress.value = { acquiring: false, percentage: 100 }
   }
 
+  // 定时轮询参数和温度（弥补 WebSocket 不推送这些字段的问题）
+  let _pollTimer: ReturnType<typeof setInterval> | null = null
+
+  function _startPolling() {
+    if (_pollTimer) return
+    _pollTimer = setInterval(async () => {
+      if (!status.connected) return
+      try {
+        // 参数
+        const p = await api.getParams()
+        if (p && Object.keys(p).length > 0) {
+          Object.assign(params.value, p)
+        }
+        // 温度
+        const t = await api.getTemperatures()
+        if (t) {
+          temperatures.value = t
+        }
+      } catch { /* polling is best-effort */ }
+    }, 2000)
+  }
+
+  function _stopPolling() {
+    if (_pollTimer) {
+      clearInterval(_pollTimer)
+      _pollTimer = null
+    }
+  }
+
   // 监听 WebSocket 的新格式消息: {displacement, chiller, detector, timestamp}
   onMessage((msg) => {
     // 新后端格式：{displacement, chiller, detector, timestamp}
     if (msg.detector) {
-      // 更新探测器状态
-      Object.assign(status, msg.detector)
+      const det = msg.detector
+      // 更新探测器状态（合并而非覆盖，保留 chip_version 等 WebSocket 不推送的字段）
+      status.connected = det.connected ?? status.connected
+      status.acquiring = det.acquiring ?? status.acquiring
+      // 温湿度从消息中提取
+      if (det.fpga_temp != null) {
+        temperatures.value = { ...temperatures.value, fpga: [det.fpga_temp] }
+      }
+      if (det.adc_temp != null) {
+        temperatures.value = { ...temperatures.value, adc: [det.adc_temp] }
+      }
       // 采集完成 → 停止进度条
-      if (!msg.detector.acquiring && progress.value.acquiring) {
+      if (!det.acquiring && progress.value.acquiring) {
         _stopLocalProgress()
       }
       error.value = null
@@ -108,24 +146,31 @@ export function useDetector() {
   async function loadConfigFile(configPath: string) {
     await api.loadConfig(configPath)
     status.connected = true
-    // 加载配置后单独获取参数（/load_config 返回的是 CommandResponse，参数需额外查询）
+    _startPolling()
+    // 加载配置后单独获取参数和温度
     try {
       const p = await api.getParams()
       if (p && Object.keys(p).length > 0) {
         Object.assign(params.value, p)
       }
-    } catch { /* params fetch is best-effort */ }
+    } catch { /* best-effort */ }
+    try {
+      const t = await api.getTemperatures()
+      if (t) temperatures.value = t
+    } catch { /* best-effort */ }
     wsConnect()
     await fetchHistory()
   }
 
   async function disconnectDetector() {
+    _stopPolling()
     wsDisconnect()
     await api.disconnect()
     status.connected = false
   }
 
   async function shutdownDetector() {
+    _stopPolling()
     await api.shutdown()
     wsDisconnect()
     status.connected = false
