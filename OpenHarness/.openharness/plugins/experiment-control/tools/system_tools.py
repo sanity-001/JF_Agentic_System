@@ -13,7 +13,7 @@ from pydantic import BaseModel
 BASE_URL = os.environ.get("JF_CONTROL_API_URL", "http://localhost:8000")
 _http_session: aiohttp.ClientSession | None = None
 
-def ___get_session():
+def _get_session():
     global _http_session
     if _http_session is None or _http_session.closed:
         _http_session = aiohttp.ClientSession()
@@ -37,7 +37,7 @@ class SystemCheck(BaseTool):
 
     async def execute(self, arguments: SystemCheckInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = __get_session()
+        session = _get_session()
         results = {}
 
         # Check backend
@@ -73,7 +73,7 @@ class SystemStartup(BaseTool):
 
     async def execute(self, arguments: SystemStartupInput,
                       context: ToolExecutionContext) -> ToolResult:
-        session = __get_session()
+        session = _get_session()
 
         # Check if already running
         try:
