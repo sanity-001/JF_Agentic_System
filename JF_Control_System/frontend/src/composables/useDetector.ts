@@ -184,12 +184,13 @@ export function useDetector() {
     _stopPolling()
     await api.shutdown()
     wsDisconnect()
-    status.connected = false
-    status.receiver_running = false
-    params.value.highvoltage = '0'
-    params.value.powerchip = '0'
+    // 清空所有状态
+    Object.assign(status, { connected: false, receiver_running: false, acquiring: false, chip_version: undefined, status: undefined })
+    params.value = { exptime: '', frames: '', period: '', highvoltage: '0', powerchip: '0', timing: '', fpath: '', fname: '', fwrite: '1', readoutspeed: '' }
+    temperatures.value = {}
     visualData.value = null
     hasBaseline.value = false
+    acqMode.value = 'signal'
   }
 
   async function startReceiver(port: number = 1954) {

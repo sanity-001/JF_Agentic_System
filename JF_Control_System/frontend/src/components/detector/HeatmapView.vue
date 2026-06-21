@@ -364,7 +364,7 @@ function saveImage() { const c = canvasRef.value; if (!c) return; const a = docu
   overflow: hidden; flex: none;
   background: #0a1520; border-radius: 4px; position: relative;
 }
-.heatmap-canvas-wrap.wrap-500k { width: 300px; height: 500px; }
+.heatmap-canvas-wrap.wrap-500k { width: 500px; height: 250px; }
 .heatmap-canvas-wrap.wrap-4m { width: 500px; height: 500px; }
 .sel-rect {
   position: absolute; border: 1px dashed #00d4ff;
