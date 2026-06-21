@@ -96,7 +96,7 @@ class ChillerGetStatus(BaseTool):
         if resp.status != 200:
             return ToolResult(output=f"❌ {data.get('detail', data)}",
                               is_error=True)
-        if not data.get("connected"):
+        if not data.get("connected") and data.get("connection") != "connected":
             return ToolResult(output="⚠️ 水冷机未连接")
         ind = data.get("indicators", {})
         running = "运行中" if ind.get("run") else "已停止"
@@ -226,7 +226,7 @@ class ChillerWaitStable(BaseTool):
                     output=f"❌ 查询状态失败: {data.get('detail', data)}",
                     is_error=True
                 )
-            if not data.get("connected"):
+            if not data.get("connected") and data.get("connection") != "connected":
                 return ToolResult(output="❌ 水冷机未连接", is_error=True)
             temp = data["temperature"] / 100.0
             last_temp = temp
