@@ -54,10 +54,8 @@ const themeOverrides = {
           </n-tabs>
         </div>
         <div class="tab-content">
-          <KeepAlive>
-            <ControlView v-if="activeTab === 'control'" />
-            <ProcessingView v-if="activeTab === 'processing'" />
-          </KeepAlive>
+          <ControlView v-show="activeTab === 'control'" />
+          <ProcessingView v-show="activeTab === 'processing'" />
         </div>
       </div>
     </n-message-provider>
