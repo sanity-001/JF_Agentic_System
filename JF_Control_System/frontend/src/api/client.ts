@@ -33,7 +33,7 @@ export const api = {
     request<any>(`/params`, { method: 'PUT', body: JSON.stringify({ name, value }) }),
 
   loadConfig:      (path: string) =>
-    request<any>(`/config/load`, { method: 'POST', body: JSON.stringify({ path }) }),
+    request<any>(`/detector/load_config`, { method: 'POST', body: JSON.stringify({ path }) }),
   saveConfig:      (path: string) =>
     request<any>(`/config/save`, { method: 'POST', body: JSON.stringify({ path }) }),
 

@@ -106,7 +106,7 @@ export function useDetector() {
   })
 
   async function loadConfigFile(configPath: string) {
-    const result = await api.connect('', configPath)
+    const result = await api.loadConfig(configPath)
     Object.assign(status, result.status || result)
     status.connected = true
     if (result.hostname) {
