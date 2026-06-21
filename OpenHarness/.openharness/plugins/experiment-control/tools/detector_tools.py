@@ -411,23 +411,17 @@ class DetectorRunAcquisition(BaseTool):
 
 class DetectorShutdown(BaseTool):
     name = "detector_shutdown"
-    description = "安全关机：停止采集→断开连接。确保探测器安全退出。"
+    description = "安全关机：停止采集→停receiver→降压→关powerchip→释放共享内存"
 
     async def execute(self, arguments: NoInput,
                       context: ToolExecutionContext) -> ToolResult:
         session = get_session()
-        steps = []
-        try:
-            await session.post(f"{BASE_URL}/api/detector/acquire/stop")
-            steps.append("停止采集")
-        except Exception:
-            pass
-        try:
-            await session.post(f"{BASE_URL}/api/detector/disconnect")
-            steps.append("断开连接")
-        except Exception:
-            pass
-        # Clear acquisition state
-        context.metadata.pop("has_baseline", None)
-        context.metadata.pop("last_raw_pattern", None)
-        return ToolResult(output=f"✅ 关机完成: {' → '.join(steps)}")
+        async with session.post(f"{BASE_URL}/api/detector/shutdown") as resp:
+            data = await resp.json()
+        if resp.status == 200:
+            # Clear acquisition state
+            context.metadata.pop("has_baseline", None)
+            context.metadata.pop("last_raw_pattern", None)
+            return ToolResult(output="✅ 探测器安全关机完成")
+        return ToolResult(output=f"❌ 关机失败: {data.get('detail', data)}",
+                          is_error=True)

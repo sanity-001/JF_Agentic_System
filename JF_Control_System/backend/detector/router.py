@@ -204,3 +204,15 @@ async def process_visual():
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Shutdown (added for Agent + frontend integration) ──
+
+@router.post("/shutdown")
+async def shutdown():
+    """Safe shutdown: stop acquisition, receiver, high voltage, power chip, free shared memory."""
+    try:
+        _detector.shutdown()
+        return CommandResponse(success=True, message="Detector shutdown complete")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
