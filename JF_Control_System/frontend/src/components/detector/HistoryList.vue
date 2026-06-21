@@ -35,8 +35,7 @@ const statusColor: Record<string, any> = {
 function formatFilename(rawPathsStr?: string): string {
   const paths: string[] = rawPathsStr ? (() => { try { return JSON.parse(rawPathsStr) } catch { return [] } })() : []
   if (paths.length === 0) return '-'
-  // Extract just the filename from each path, e.g. "JF500K-shine_d0_f0_5.raw"
-  return paths.map(p => p.split('/').pop() || p).join(', ')
+  return paths.join(', ')
 }
 
 const columns: DataTableColumns<HistoryRecord> = [

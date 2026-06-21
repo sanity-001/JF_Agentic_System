@@ -221,7 +221,8 @@ class DetectorService:
         d = self._detector
         params = {}
         for attr in ["hostname", "exptime", "frames", "period", "highvoltage",
-                      "powerchip", "timing", "fpath", "fname", "fwrite", "readoutspeed"]:
+                      "powerchip", "timing", "fpath", "fname", "fwrite", "readoutspeed",
+                      "findex"]:
             if hasattr(d, attr):
                 val = getattr(d, attr)
                 params[attr] = self._normalize_param(attr, val)

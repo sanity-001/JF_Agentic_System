@@ -173,9 +173,6 @@ async def set_mode(req: SetModeRequest):
 
 # ── Visual processing (added for Agent + frontend integration) ──
 
-import glob as _glob
-
-
 @router.post("/visual/process")
 async def process_visual():
     """Process the most recent acquisition and return heatmap data."""
@@ -191,13 +188,13 @@ async def process_visual():
         if not fpath or not fname:
             raise HTTPException(status_code=400, detail="fpath/fname not configured")
 
-        # Find the latest raw file (500K: single file)
-        pattern = os.path.join(fpath, f"{fname}_d0_f0_*.raw")
-        files = sorted(_glob.glob(pattern))
-        if not files:
-            raise HTTPException(status_code=404, detail=f"No raw files found: {pattern}")
+        # Locate raw file by findex (500K: single file)
+        findex = int(params.get("findex", 0) or 0)
+        raw_file = os.path.join(fpath, f"{fname}_d0_f0_{findex - 1}.raw")
+        if not os.path.exists(raw_file):
+            raise HTTPException(status_code=404, detail=f"Raw file not found: {raw_file}")
 
-        raw_paths = [files[-1]]  # Use latest file
+        raw_paths = [raw_file]
         result = _detector.process_acquisition_visual(raw_paths)
 
         # Record acquisition to history (best-effort, don't fail the request)
