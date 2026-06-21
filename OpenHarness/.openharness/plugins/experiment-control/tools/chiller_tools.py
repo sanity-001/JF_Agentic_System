@@ -34,6 +34,12 @@ class PIDInput(BaseModel):
     d: float = Field(ge=0, description="微分时间")
 
 
+class ChillerConnectInput(BaseModel):
+    port: str = Field(default="/dev/ttyUSB0", description="串口设备路径")
+    baudrate: int = Field(default=4800, description="波特率")
+    slave_address: int = Field(default=1, description="MODBUS 从站地址")
+
+
 class WaitStableInput(BaseModel):
     target: float = Field(description="目标温度 (°C)")
     tolerance: float = Field(default=0.3, description="允许偏差 (°C)")
@@ -41,6 +47,41 @@ class WaitStableInput(BaseModel):
 
 
 # ── Tools ──
+
+class ChillerConnect(BaseTool):
+    name = "chiller_connect"
+    description = "连接水冷机（MODBUS RTU）。默认串口 /dev/ttyUSB0，波特率 4800。"
+    input_model = ChillerConnectInput
+
+    async def execute(self, arguments: ChillerConnectInput,
+                      context: ToolExecutionContext) -> ToolResult:
+        session = _get_session()
+        async with session.post(
+            f"{BASE_URL}/api/chiller/connect",
+            json={"port": arguments.port, "baudrate": arguments.baudrate,
+                  "slave_address": arguments.slave_address}
+        ) as resp:
+            data = await resp.json()
+        if resp.status == 200:
+            return ToolResult(output=f"✅ 水冷机已连接 ({arguments.port})")
+        return ToolResult(output=f"❌ {data.get('detail', data)}",
+                          is_error=True)
+
+
+class ChillerDisconnect(BaseTool):
+    name = "chiller_disconnect"
+    description = "断开与水冷机的连接"
+    input_model = NoInput
+
+    async def execute(self, arguments: NoInput,
+                      context: ToolExecutionContext) -> ToolResult:
+        session = _get_session()
+        async with session.post(f"{BASE_URL}/api/chiller/disconnect") as resp:
+            data = await resp.json()
+        if resp.status == 200:
+            return ToolResult(output="✅ 水冷机已断开")
+        return ToolResult(output=f"❌ {data.get('detail', data)}",
+                          is_error=True)
 
 class ChillerGetStatus(BaseTool):
     name = "chiller_get_status"
