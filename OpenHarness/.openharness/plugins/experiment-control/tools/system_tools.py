@@ -23,6 +23,10 @@ JF_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..",
                  "JF_Control_System")
 )
+_CONDA_PYTHON = os.environ.get(
+    "JF_CONDA_PYTHON",
+    os.path.expanduser("~/miniconda3/envs/slsdet9/bin/python")
+)
 
 
 class SystemCheckInput(BaseModel):
@@ -85,9 +89,9 @@ class SystemStartup(BaseTool):
         except Exception:
             pass
 
-        # Launch via start.py in conda env slsdet9
+        # Launch via conda env Python directly (avoids conda PATH issues)
         proc = subprocess.Popen(
-            ["conda", "run", "-n", "slsdet9", "python", "start.py"],
+            [_CONDA_PYTHON, "start.py"],
             cwd=JF_ROOT,
             start_new_session=True,
             stdout=subprocess.DEVNULL,
@@ -110,7 +114,7 @@ class SystemStartup(BaseTool):
             await asyncio.sleep(1)
 
         return ToolResult(
-            output="⚠️ 后端启动超时（30s）。请检查 conda 环境 slsdet9 和 start.py",
+            output=f"⚠️ 后端启动超时（30s）。请检查 Python: {_CONDA_PYTHON} 和 {JF_ROOT}/start.py",
             is_error=True
         )
 
