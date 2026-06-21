@@ -71,6 +71,26 @@ const showShutdownModal = ref(false)
     </template>
 
     <div class="conn-body">
+      <!-- Receiver control -->
+      <div class="conn-section">
+        <div class="section-label">接收器</div>
+        <div class="receiver-row">
+          <span class="param-label">端口</span>
+          <n-input-number v-model:value="receiverPort" size="small" style="width: 80px;"
+            :disabled="status.receiver_running" :min="1" :max="65535" />
+          <n-button v-if="!status.receiver_running" size="small" type="primary"
+            @click="emit('startReceiver', receiverPort)">
+            <template #icon><n-icon :component="PlayOutline" :size="14" /></template>
+            启动
+          </n-button>
+          <n-button v-else size="small" type="error"
+            @click="emit('stopReceiver')">
+            <template #icon><n-icon :component="StopOutline" :size="14" /></template>
+            停止
+          </n-button>
+        </div>
+      </div>
+
       <!-- Config file selection -->
       <div class="conn-section">
         <div class="section-label">配置文件</div>
@@ -92,26 +112,6 @@ const showShutdownModal = ref(false)
         <div v-if="selectedConfigPath && status.connected" class="loaded-info">
           当前配置：{{ selectedConfigPath }}
         </div>
-      </div>
-
-      <!-- Receiver control -->
-      <div class="conn-section">
-        <div class="section-label">接收器</div>
-        <div class="receiver-row">
-          <span class="param-label">端口</span>
-          <n-input-number v-model:value="receiverPort" size="medium" style="width: 100px;"
-            :disabled="status.receiver_running" :min="1" :max="65535" />
-        </div>
-        <n-button v-if="!status.receiver_running" size="medium" type="primary" block
-          @click="emit('startReceiver', receiverPort)">
-          <template #icon><n-icon :component="PlayOutline" :size="16" /></template>
-          启动接收器
-        </n-button>
-        <n-button v-else size="medium" type="error" block
-          @click="emit('stopReceiver')">
-          <template #icon><n-icon :component="StopOutline" :size="16" /></template>
-          停止接收器
-        </n-button>
       </div>
 
       <!-- Disconnect & Shutdown -->
