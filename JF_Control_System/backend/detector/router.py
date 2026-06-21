@@ -169,3 +169,38 @@ async def set_mode(req: SetModeRequest):
         return CommandResponse(success=True, message=f"Mode set to {req.mode}")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# ── Visual processing (added for Agent + frontend integration) ──
+
+import glob as _glob
+
+
+@router.post("/visual/process")
+async def process_visual():
+    """Process the most recent acquisition and return heatmap data."""
+    if not _detector.connected:
+        raise HTTPException(status_code=400, detail="Detector not connected")
+    if _detector.acquiring:
+        raise HTTPException(status_code=400, detail="Acquisition still in progress")
+
+    try:
+        params = _detector.get_params()
+        fpath = params.get("fpath", "")
+        fname = params.get("fname", "")
+        if not fpath or not fname:
+            raise HTTPException(status_code=400, detail="fpath/fname not configured")
+
+        # Find the latest raw file (500K: single file)
+        pattern = os.path.join(fpath, f"{fname}_d0_f0_*.raw")
+        files = sorted(_glob.glob(pattern))
+        if not files:
+            raise HTTPException(status_code=404, detail=f"No raw files found: {pattern}")
+
+        raw_paths = [files[-1]]  # Use latest file
+        result = _detector.process_acquisition_visual(raw_paths)
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

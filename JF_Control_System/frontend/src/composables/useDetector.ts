@@ -107,9 +107,17 @@ export function useDetector() {
       if (det.adc_temp != null) {
         temperatures.value = { ...temperatures.value, adc: [det.adc_temp] }
       }
-      // 采集完成 → 停止进度条
+      // 采集完成 → 停止进度条 + 获取图像
       if (!det.acquiring && progress.value.acquiring) {
         _stopLocalProgress()
+        // 自动获取视觉数据
+        try {
+          const vd = await api.processVisual()
+          if (vd) {
+            visualData.value = vd as VisualData
+            hasBaseline.value = vd.baseline !== null
+          }
+        } catch { /* visual processing is best-effort */ }
       }
       error.value = null
       return

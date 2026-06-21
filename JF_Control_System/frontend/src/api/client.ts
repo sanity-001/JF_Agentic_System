@@ -63,6 +63,10 @@ export const api = {
   acquireStop:     () =>
     request<any>(`/detector/acquire/stop`, { method: 'POST' }),
 
+  // ── Visual processing ──
+  processVisual:   () =>
+    request<any>(`/detector/visual/process`, { method: 'POST' }),
+
   // ── History ──
   getHistory:      (limit = 20, offset = 0) =>
     request<any[]>(`/detector/history?limit=${limit}&offset=${offset}`),
