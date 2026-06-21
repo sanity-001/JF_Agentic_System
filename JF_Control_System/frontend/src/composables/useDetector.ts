@@ -106,15 +106,15 @@ export function useDetector() {
   })
 
   async function loadConfigFile(configPath: string) {
-    const result = await api.loadConfig(configPath)
-    Object.assign(status, result.status || result)
+    await api.loadConfig(configPath)
     status.connected = true
-    if (result.hostname) {
-      hostname.value = result.hostname
-    }
-    if (result.params) {
-      Object.assign(params.value, result.params)
-    }
+    // 加载配置后单独获取参数（/load_config 返回的是 CommandResponse，参数需额外查询）
+    try {
+      const p = await api.getParams()
+      if (p && Object.keys(p).length > 0) {
+        Object.assign(params.value, p)
+      }
+    } catch { /* params fetch is best-effort */ }
     wsConnect()
     await fetchHistory()
   }
