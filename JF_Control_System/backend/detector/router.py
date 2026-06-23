@@ -89,10 +89,31 @@ async def set_param(req: SetParamRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+async def _push_detector_status():
+    """Immediately broadcast current detector state via WebSocket."""
+    try:
+        from backend.ws_manager import ws_manager
+        from backend.models import WsDetectorData, WsPushData
+        det = _detector.get_status()
+        payload = WsPushData()
+        payload.detector = WsDetectorData(
+            connected=det.get("connected", False),
+            fpga_temp=det.get("fpga_temp"),
+            adc_temp=det.get("adc_temp"),
+            hv=det.get("hv"),
+            acquiring=det.get("acquiring", False),
+            frames_done=det.get("frames_done", 0),
+        )
+        await ws_manager.broadcast(payload.model_dump())
+    except Exception:
+        pass
+
+
 @router.post("/acquire/start")
 async def start_acquire():
     try:
         _detector.start_acquisition()
+        await _push_detector_status()  # push immediately, don't wait for 500ms poll
         return CommandResponse(success=True, message="Acquisition started")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -102,6 +123,7 @@ async def start_acquire():
 async def stop_acquire():
     try:
         _detector.stop_acquisition()
+        await _push_detector_status()
         return CommandResponse(success=True, message="Acquisition stopped")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

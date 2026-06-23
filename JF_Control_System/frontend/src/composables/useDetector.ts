@@ -120,7 +120,8 @@ export function useDetector() {
     }
   }
 
-  // 监听 WebSocket — 仅处理连接/断开/温度（采集检测由轮询负责）
+  // 监听 WebSocket — 推模型：后端采集开始/停止时立即推送
+  let _wsAcquiring = false
   onMessage((msg) => {
     if (msg.detector) {
       const det = msg.detector
@@ -138,6 +139,15 @@ export function useDetector() {
         hasBaseline.value = false
         acqMode.value = 'signal'
       }
+      // 采集状态检测（WebSocket推模型 — 比轮询更快更可靠）
+      if (det.acquiring && !_wsAcquiring && !progress.value.acquiring) {
+        _startLocalProgress()
+      }
+      if (!det.acquiring && _wsAcquiring) {
+        if (progress.value.acquiring) _stopLocalProgress()
+        // processVisual — 已经由轮询处理，这里可选跳过避免重复
+      }
+      _wsAcquiring = det.acquiring ?? _wsAcquiring
       // 温度从消息中提取（比轮询更及时）
       if (det.fpga_temp != null) {
         temperatures.value = { ...temperatures.value, fpga: [det.fpga_temp] }
