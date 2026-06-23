@@ -30,7 +30,7 @@ version: 0.2.0
 | detector_browse_files | 浏览服务器文件，查找配置或数据 |
 | detector_set_mode | 设置 baseline/signal 模式 |
 | detector_set_param | 设置单个参数 |
-| detector_run_acquisition | ⭐ 一键采集（含安全联锁，自动追踪基线状态和文件路径） |
+| detector_run_acquisition | ⭐ 启动采集并等待完成（仅采集，不含配置加载和参数设置。调用前需先 load_config + set_mode + set_param） |
 | detector_shutdown | 安全关机 |
 
 ### 位移台
@@ -69,9 +69,10 @@ version: 0.2.0
     文件名={fname}, 存储路径={fpath}, 读出速度={readoutspeed}。
     需要修改哪些参数？"
     （如果用户在初始指令中已指定了参数值，跳过此步，直接应用用户指定的参数）
+    ⚠️ 参数修改使用 detector_set_param，不要放入 detector_run_acquisition
 7. detector_set_mode("baseline")           → 基线模式
 8. detector_run_acquisition(               → 采集基线
-     mode="baseline")                       （自动记录基线状态和 raw 文件路径）
+     mode="baseline")                       （仅启动+等待，不加载配置不设参数）
 9. ⚠️ 暂停，询问用户：                       X 光机联锁（强制暂停）
    "基线采集完成。请确认已开启 X 光机，然后我将继续采集信号。"
 10. 等待用户确认

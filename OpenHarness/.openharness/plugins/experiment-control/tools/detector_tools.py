@@ -54,15 +54,9 @@ class SetModeInput(BaseModel):
 
 
 class RunAcquisitionInput(BaseModel):
-    config_path: str = Field(
-        default=DEFAULT_CONFIG_PATH,
-        description=f"探测器 .config 配置文件路径（默认: {DEFAULT_CONFIG_PATH}）"
-    )
     mode: str = Field(description='"baseline" 或 "signal"')
-    params: dict = Field(default_factory=dict,
-                         description="采集参数，如 {exptime: '500', frames: '200'}")
     check_safety: bool = Field(default=True,
-                               description="信号模式下是否执行安全联锁检查")
+                               description="是否执行安全联锁检查")
 
 
 # ── Fine-grained tools ──
@@ -306,9 +300,9 @@ class DetectorStopAcquisition(BaseTool):
 class DetectorRunAcquisition(BaseTool):
     name = "detector_run_acquisition"
     description = (
-        "⭐ 一键采集：加载配置文件→设置采集模式→设置参数→安全联锁检查→"
-        "启动采集→等待完成→返回 raw 文件路径。"
-        f"默认使用配置文件 {DEFAULT_CONFIG_PATH}。"
+        "启动探测器采集并等待完成。"
+        "⚠️ 调用前需已通过 detector_load_config 加载配置、"
+        "detector_set_mode 设置模式、detector_set_param 设置参数。"
         "baseline 模式会自动记录基线状态，signal 模式会检查是否已有基线。"
     )
     input_model = RunAcquisitionInput
@@ -316,6 +310,12 @@ class DetectorRunAcquisition(BaseTool):
     async def execute(self, arguments: RunAcquisitionInput,
                       context: ToolExecutionContext) -> ToolResult:
         session = _get_session()
+
+        if arguments.mode not in ("baseline", "signal"):
+            return ToolResult(
+                output=f"❌ 无效模式: {arguments.mode}，仅支持 baseline/signal",
+                is_error=True
+            )
 
         # 0. Check baseline prerequisite for signal mode
         if arguments.mode == "signal":
@@ -325,53 +325,14 @@ class DetectorRunAcquisition(BaseTool):
                     is_error=True
                 )
 
-        # 1. Load config only if not already loaded
-        #    (skip to avoid overwriting params set via fine-grained tools)
-        if not context.metadata.get("config_loaded"):
-            async with session.post(
-                f"{BASE_URL}/api/detector/load_config",
-                json={"path": arguments.config_path}
-            ) as resp:
-                if resp.status != 200:
-                    data = await resp.json()
-                    return ToolResult(
-                        output=f"❌ 加载配置失败: {data.get('detail', data)}",
-                        is_error=True
-                    )
-
-        # 2. Set acquisition mode
-        async with session.post(
-            f"{BASE_URL}/api/detector/mode",
-            json={"mode": arguments.mode}
-        ) as resp:
-            if resp.status != 200:
-                data = await resp.json()
-                return ToolResult(
-                    output=f"❌ 设置模式失败: {data.get('detail', data)}",
-                    is_error=True
-                )
-
-        # 3. Set parameters
-        for key, value in arguments.params.items():
-            async with session.post(
-                f"{BASE_URL}/api/detector/params",
-                json={"key": key, "value": str(value)}
-            ) as resp:
-                if resp.status != 200:
-                    data = await resp.json()
-                    return ToolResult(
-                        output=f"❌ 设置 {key}={value} 失败: {data.get('detail', data)}",
-                        is_error=True
-                    )
-
-        # 4. Safety interlock — mandatory for ALL acquisition modes
+        # 1. Safety interlock — mandatory for ALL acquisition modes
         if arguments.check_safety:
             async with session.get(f"{BASE_URL}/api/chiller/status") as resp:
                 ch_data = await resp.json()
             if resp.status == 200:
                 if not ch_data.get("indicators", {}).get("run"):
                     return ToolResult(
-                        output="❌ 安全联锁：水冷机未运行，拒绝信号采集。请先启动水冷。",
+                        output="❌ 安全联锁：水冷机未运行，拒绝采集。请先启动水冷。",
                         is_error=True
                     )
                 temp = ch_data.get("temperature", 0) / 100.0
@@ -381,7 +342,7 @@ class DetectorRunAcquisition(BaseTool):
                         is_error=True
                     )
 
-        # 5. Start acquisition
+        # 2. Start acquisition
         async with session.post(f"{BASE_URL}/api/detector/acquire/start") as resp:
             if resp.status != 200:
                 data = await resp.json()
@@ -390,7 +351,7 @@ class DetectorRunAcquisition(BaseTool):
                     is_error=True
                 )
 
-        # 6. Poll until acquisition completes
+        # 3. Poll until acquisition completes
         start_time = time.time()
         while True:
             await asyncio.sleep(1)
@@ -406,7 +367,7 @@ class DetectorRunAcquisition(BaseTool):
 
         duration = int(time.time() - start_time)
 
-        # 7. Read params to determine raw file location (500K: single file)
+        # 4. Read params to determine raw file location (500K: single file)
         async with session.get(f"{BASE_URL}/api/detector/params") as resp:
             params = await resp.json()
 
@@ -414,7 +375,7 @@ class DetectorRunAcquisition(BaseTool):
         fname = params.get("fname", "")
         raw_file = f"{fpath}/{fname}_d0_f0_*.raw"
 
-        # 8. Store state in metadata for downstream tools
+        # 5. Store state in metadata for downstream tools
         context.metadata["last_raw_pattern"] = raw_file
         context.metadata["last_fpath"] = fpath
         context.metadata["last_fname"] = fname
