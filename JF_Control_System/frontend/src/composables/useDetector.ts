@@ -111,6 +111,12 @@ export function useDetector() {
       }
       if (!status.connected && wasConnected) {
         _stopPolling()
+        // 探测器断开（含Agent关机）→ 清空全部状态
+        params.value = { exptime: '', frames: '', period: '', highvoltage: '0', powerchip: '0', timing: '', fpath: '', fname: '', fwrite: '1', readoutspeed: '' }
+        temperatures.value = {}
+        visualData.value = null
+        hasBaseline.value = false
+        acqMode.value = 'signal'
       }
       // 温湿度从消息中提取
       if (det.fpga_temp != null) {
