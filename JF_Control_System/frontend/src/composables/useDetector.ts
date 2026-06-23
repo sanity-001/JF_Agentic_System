@@ -45,7 +45,6 @@ export function useDetector() {
 
   function _startLocalProgress() {
     _stopped = false
-    _prevAcquiring = true
     const frames = parseInt(params.value.frames) || 0
     const period = parseDuration(params.value.period || '1ms', 'period')
     _progressExpected = frames * period || 10
@@ -94,12 +93,8 @@ export function useDetector() {
         Object.assign(status, s)
         const prev = _prevAcquiring
         _prevAcquiring = s.acquiring
-        if (s.acquiring && !prev && !progress.value.acquiring) {
-          _startLocalProgress()
-        }
         if (!s.acquiring && prev) {
-          if (progress.value.acquiring) _stopLocalProgress()
-          _fetchVisualWithRetry()  // fire-and-forget
+          _fetchVisualWithRetry()
           fetchHistory().catch(() => {})
         }
       }
@@ -123,14 +118,12 @@ export function useDetector() {
     }
   }
 
-  // 监听 WebSocket — 推模型：后端采集开始/停止时立即推送
-  let _wsAcquiring = false
+  // 监听 WebSocket — progress.acquiring 直接由后端 acquiring 控制
   onMessage((msg) => {
     if (msg.detector) {
       const det = msg.detector
       const wasConnected = status.connected
       status.connected = det.connected ?? status.connected
-      // 自动启动/停止轮询
       if (status.connected && !wasConnected) {
         _startPolling()
       }
@@ -142,16 +135,11 @@ export function useDetector() {
         hasBaseline.value = false
         acqMode.value = 'signal'
       }
-      // 采集状态检测（WebSocket推模型 — 比轮询更快更可靠）
-      if (det.acquiring && !_wsAcquiring && !progress.value.acquiring) {
-        _startLocalProgress()
+      // 进度条直接镜像后端状态（和手动按钮 progress.value.acquiring = true 一样）
+      if (det.acquiring != null) {
+        if (det.acquiring && !progress.value.acquiring) _startLocalProgress()
+        if (!det.acquiring && progress.value.acquiring) _stopLocalProgress()
       }
-      if (!det.acquiring && _wsAcquiring) {
-        if (progress.value.acquiring) _stopLocalProgress()
-        // processVisual — 已经由轮询处理，这里可选跳过避免重复
-      }
-      _wsAcquiring = det.acquiring ?? _wsAcquiring
-      // 温度从消息中提取（比轮询更及时）
       if (det.fpga_temp != null) {
         temperatures.value = { ...temperatures.value, fpga: [det.fpga_temp] }
       }
