@@ -389,18 +389,25 @@ class DetectorRunAcquisition(BaseTool):
             context.metadata["has_baseline"] = True
             context.metadata["baseline_fpath"] = fpath
             context.metadata["baseline_fname"] = fname
-            # Store baseline in backend memory (same as frontend processVisual)
-            try:
-                async with session.post(
-                    f"{BASE_URL}/api/detector/visual/process"
-                ) as _resp:
-                    pass  # best-effort, don't fail on error
-            except Exception:
-                pass
+            # Store baseline in backend memory via processVisual (with retry)
+            vis_msg = ""
+            for attempt in range(5):
+                await asyncio.sleep(1)
+                try:
+                    async with session.post(
+                        f"{BASE_URL}/api/detector/visual/process"
+                    ) as _resp:
+                        if _resp.status == 200:
+                            vis_msg = ""
+                            break
+                except Exception:
+                    pass
+            else:
+                vis_msg = "\n⚠️ 基线存储失败，后续信号采集可能检测不到基线"
 
         return ToolResult(
             output=f"✅ 采集完成（模式: {arguments.mode}，耗时 {duration}s）\n"
-                   f"文件位置: {fpath}/{fname}_*.raw"
+                   f"文件位置: {fpath}/{fname}_*.raw{vis_msg}"
         )
 
 
