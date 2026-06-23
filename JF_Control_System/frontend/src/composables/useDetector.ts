@@ -45,8 +45,7 @@ export function useDetector() {
 
   function _startLocalProgress() {
     _stopped = false
-    progress.value = { acquiring: true, percentage: 0 }
-    _prevAcquiring = true  // 保底：即使轮询漏了采集开始，完成检测也能触发
+    _prevAcquiring = true
     const frames = parseInt(params.value.frames) || 0
     const period = parseDuration(params.value.period || '1ms', 'period')
     _progressExpected = frames * period || 10
