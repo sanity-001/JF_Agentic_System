@@ -68,58 +68,57 @@ export function useDetector() {
     progress.value = { acquiring: false, percentage: 100 }
   }
 
-  // 定时轮询参数和温度，同时检测采集状态（比WebSocket更可靠）
-  let _pollTimer: ReturnType<typeof setInterval> | null = null
+  // 定时轮询参数和温度，同时检测采集状态（递归setTimeout保证不并发）
+  let _pollTimer: ReturnType<typeof setTimeout> | null = null
   let _prevAcquiring = false
+
+  async function _fetchVisualWithRetry() {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      await new Promise(r => setTimeout(r, 500))
+      try {
+        const result = await api.processVisual()
+        if (result) {
+          visualData.value = result as VisualData
+          hasBaseline.value = result.baseline !== null
+          return
+        }
+      } catch { /* retry */ }
+    }
+  }
+
+  async function _pollOnce() {
+    if (!status.connected) { _pollTimer = setTimeout(_pollOnce, 500); return }
+    try {
+      const s = await api.getStatus()
+      if (s) {
+        Object.assign(status, s)
+        const prev = _prevAcquiring
+        _prevAcquiring = s.acquiring
+        if (s.acquiring && !prev && !progress.value.acquiring) {
+          _startLocalProgress()
+        }
+        if (!s.acquiring && prev) {
+          if (progress.value.acquiring) _stopLocalProgress()
+          _fetchVisualWithRetry()  // fire-and-forget
+          fetchHistory().catch(() => {})
+        }
+      }
+      const p = await api.getParams()
+      if (p && Object.keys(p).length > 0) Object.assign(params.value, p)
+      const t = await api.getTemperatures()
+      if (t) temperatures.value = t
+    } catch { /* best-effort */ }
+    _pollTimer = setTimeout(_pollOnce, 500)
+  }
 
   function _startPolling() {
     if (_pollTimer) return
-    _pollTimer = setInterval(async () => {
-      if (!status.connected) return
-      try {
-        const s = await api.getStatus()
-        if (s) {
-          Object.assign(status, s)
-          // ── 采集状态检测（先取快照再判断，防止retry期间重入）──
-          const prev = _prevAcquiring
-          _prevAcquiring = s.acquiring
-          if (s.acquiring && !prev && !progress.value.acquiring) {
-            _startLocalProgress()
-          }
-          if (!s.acquiring && prev) {
-            if (progress.value.acquiring) _stopLocalProgress()
-            let vd: VisualData | null = null
-            for (let attempt = 0; attempt < 5; attempt++) {
-              await new Promise(r => setTimeout(r, 500))
-              try {
-                const result = await api.processVisual()
-                if (result) { vd = result as VisualData; break }
-              } catch { /* raw file not ready yet, retry */ }
-            }
-            if (vd) {
-              visualData.value = vd
-              hasBaseline.value = vd.baseline !== null
-            }
-            fetchHistory().catch(() => {})
-          }
-        }
-        // 参数
-        const p = await api.getParams()
-        if (p && Object.keys(p).length > 0) {
-          Object.assign(params.value, p)
-        }
-        // 温度
-        const t = await api.getTemperatures()
-        if (t) {
-          temperatures.value = t
-        }
-      } catch { /* polling is best-effort */ }
-    }, 500)
+    _pollOnce()  // fire first, then recurse
   }
 
   function _stopPolling() {
     if (_pollTimer) {
-      clearInterval(_pollTimer)
+      clearTimeout(_pollTimer)
       _pollTimer = null
     }
   }
