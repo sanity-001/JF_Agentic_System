@@ -3,7 +3,6 @@ import asyncio
 import os
 import signal
 import subprocess
-import sys
 
 import aiohttp
 from openharness.tools.base import BaseTool, ToolExecutionContext, ToolResult
@@ -23,11 +22,6 @@ JF_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..",
                  "JF_Control_System")
 )
-_CONDA_PYTHON = os.environ.get(
-    "JF_CONDA_PYTHON",
-    os.path.expanduser("~/miniconda3/envs/slsdet9/bin/python")
-)
-_CONDA_BIN = os.path.dirname(_CONDA_PYTHON)
 
 
 class SystemCheckInput(BaseModel):
@@ -90,13 +84,10 @@ class SystemStartup(BaseTool):
         except Exception:
             pass
 
-        # Launch via conda env Python with correct PATH (for slsReceiver etc.)
-        env = os.environ.copy()
-        env["PATH"] = f"{_CONDA_BIN}:{env.get('PATH', '')}"
+        # Launch via start.sh — handles conda activation properly
         proc = subprocess.Popen(
-            [_CONDA_PYTHON, "start.py"],
+            ["bash", os.path.join(JF_ROOT, "start.sh")],
             cwd=JF_ROOT,
-            env=env,
             start_new_session=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -118,7 +109,7 @@ class SystemStartup(BaseTool):
             await asyncio.sleep(1)
 
         return ToolResult(
-            output=f"⚠️ 后端启动超时（30s）。请检查 Python: {_CONDA_PYTHON} 和 {JF_ROOT}/start.py",
+            output=f"⚠️ 后端启动超时（30s）。请检查 conda 环境 slsdet9 和 {JF_ROOT}/start.sh",
             is_error=True
         )
 
