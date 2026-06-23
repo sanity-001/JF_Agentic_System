@@ -43,6 +43,7 @@ export function useDetector() {
   let _progressExpected = 10
 
   function _startLocalProgress() {
+    _prevAcquiring = true  // 标记采集进行中，确保完成检测对按钮和Agent都生效
     const frames = parseInt(params.value.frames) || 0
     const period = parseDuration(params.value.period || '1ms', 'period')
     _progressExpected = frames * period || 10
@@ -75,13 +76,14 @@ export function useDetector() {
         const s = await api.getStatus()
         if (s) {
           Object.assign(status, s)
-          // ── 采集状态检测（轮询驱动，不依赖WebSocket时序）──
-          if (s.acquiring && !_prevAcquiring && !progress.value.acquiring) {
+          // ── 采集状态检测（先取快照再判断，防止retry期间重入）──
+          const prev = _prevAcquiring
+          _prevAcquiring = s.acquiring
+          if (s.acquiring && !prev && !progress.value.acquiring) {
             _startLocalProgress()
           }
-          if (!s.acquiring && _prevAcquiring) {
+          if (!s.acquiring && prev) {
             if (progress.value.acquiring) _stopLocalProgress()
-            // Retry processVisual — raw file may not be flushed yet
             let vd: VisualData | null = null
             for (let attempt = 0; attempt < 5; attempt++) {
               await new Promise(r => setTimeout(r, 500))
@@ -96,7 +98,6 @@ export function useDetector() {
             }
             fetchHistory().catch(() => {})
           }
-          _prevAcquiring = s.acquiring
         }
         // 参数
         const p = await api.getParams()
