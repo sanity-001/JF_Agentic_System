@@ -385,12 +385,12 @@ class DetectorRunAcquisition(BaseTool):
         context.metadata["last_fname"] = fname
         context.metadata["last_acq_mode"] = arguments.mode
 
+        vis_msg = ""
         if arguments.mode == "baseline":
             context.metadata["has_baseline"] = True
             context.metadata["baseline_fpath"] = fpath
             context.metadata["baseline_fname"] = fname
             # Store baseline in backend memory via processVisual (with retry)
-            vis_msg = ""
             for attempt in range(5):
                 await asyncio.sleep(1)
                 try:
