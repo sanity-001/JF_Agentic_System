@@ -45,6 +45,7 @@ export function useDetector() {
 
   function _startLocalProgress() {
     _stopped = false
+    progress.value = { acquiring: true, percentage: 0 }  // 同步设true，避免100ms间隙
     const frames = parseInt(params.value.frames) || 0
     const period = parseDuration(params.value.period || '1ms', 'period')
     _progressExpected = frames * period || 10
