@@ -135,13 +135,19 @@ export function useDetector() {
       // 采集完成 → 停止进度条 + 获取图像 + 刷新历史
       if (!det.acquiring && progress.value.acquiring) {
         _stopLocalProgress()
-        try {
-          const vd = await api.processVisual()
-          if (vd) {
-            visualData.value = vd as VisualData
-            hasBaseline.value = vd.baseline !== null
-          }
-        } catch { /* best-effort */ }
+        // Retry processVisual — raw file may not be flushed yet
+        let vd: VisualData | null = null
+        for (let attempt = 0; attempt < 5; attempt++) {
+          await new Promise(r => setTimeout(r, 500))
+          try {
+            const result = await api.processVisual()
+            if (result) { vd = result as VisualData; break }
+          } catch { /* raw file not ready yet, retry */ }
+        }
+        if (vd) {
+          visualData.value = vd
+          hasBaseline.value = vd.baseline !== null
+        }
         fetchHistory().catch(() => {})
       }
       error.value = null
