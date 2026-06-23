@@ -325,17 +325,19 @@ class DetectorRunAcquisition(BaseTool):
                     is_error=True
                 )
 
-        # 1. Load config (connects detector)
-        async with session.post(
-            f"{BASE_URL}/api/detector/load_config",
-            json={"path": arguments.config_path}
-        ) as resp:
-            if resp.status != 200:
-                data = await resp.json()
-                return ToolResult(
-                    output=f"❌ 加载配置失败: {data.get('detail', data)}",
-                    is_error=True
-                )
+        # 1. Load config only if not already loaded
+        #    (skip to avoid overwriting params set via fine-grained tools)
+        if not context.metadata.get("config_loaded"):
+            async with session.post(
+                f"{BASE_URL}/api/detector/load_config",
+                json={"path": arguments.config_path}
+            ) as resp:
+                if resp.status != 200:
+                    data = await resp.json()
+                    return ToolResult(
+                        output=f"❌ 加载配置失败: {data.get('detail', data)}",
+                        is_error=True
+                    )
 
         # 2. Set acquisition mode
         async with session.post(
