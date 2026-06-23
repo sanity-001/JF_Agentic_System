@@ -133,8 +133,8 @@ export function useDetector() {
         _startLocalProgress()
       }
       // 采集完成 → 停止进度条 + 获取图像 + 刷新历史
-      if (!det.acquiring && progress.value.acquiring) {
-        _stopLocalProgress()
+      if (!det.acquiring && wasAcquiring) {
+        if (progress.value.acquiring) _stopLocalProgress()
         // Retry processVisual — raw file may not be flushed yet
         let vd: VisualData | null = null
         for (let attempt = 0; attempt < 5; attempt++) {
