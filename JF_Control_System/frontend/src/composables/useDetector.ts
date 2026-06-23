@@ -63,19 +63,40 @@ export function useDetector() {
     progress.value = { acquiring: false, percentage: 100 }
   }
 
-  // 定时轮询参数和温度（弥补 WebSocket 不推送这些字段的问题）
+  // 定时轮询参数和温度，同时检测采集状态（比WebSocket更可靠）
   let _pollTimer: ReturnType<typeof setInterval> | null = null
+  let _prevAcquiring = false
 
   function _startPolling() {
     if (_pollTimer) return
     _pollTimer = setInterval(async () => {
       if (!status.connected) return
       try {
-        // 状态（含 chip_version、receiver_running，但不含 acquiring——由WebSocket控制）
         const s = await api.getStatus()
         if (s) {
-          const { acquiring, ...rest } = s as any
-          Object.assign(status, rest)
+          Object.assign(status, s)
+          // ── 采集状态检测（轮询驱动，不依赖WebSocket时序）──
+          if (s.acquiring && !_prevAcquiring && !progress.value.acquiring) {
+            _startLocalProgress()
+          }
+          if (!s.acquiring && _prevAcquiring) {
+            if (progress.value.acquiring) _stopLocalProgress()
+            // Retry processVisual — raw file may not be flushed yet
+            let vd: VisualData | null = null
+            for (let attempt = 0; attempt < 5; attempt++) {
+              await new Promise(r => setTimeout(r, 500))
+              try {
+                const result = await api.processVisual()
+                if (result) { vd = result as VisualData; break }
+              } catch { /* raw file not ready yet, retry */ }
+            }
+            if (vd) {
+              visualData.value = vd
+              hasBaseline.value = vd.baseline !== null
+            }
+            fetchHistory().catch(() => {})
+          }
+          _prevAcquiring = s.acquiring
         }
         // 参数
         const p = await api.getParams()
@@ -88,7 +109,7 @@ export function useDetector() {
           temperatures.value = t
         }
       } catch { /* polling is best-effort */ }
-    }, 2000)
+    }, 500)
   }
 
   function _stopPolling() {
@@ -98,57 +119,30 @@ export function useDetector() {
     }
   }
 
-  // 监听 WebSocket 的新格式消息: {displacement, chiller, detector, timestamp}
-  onMessage(async (msg) => {
-    // 新后端格式：{displacement, chiller, detector, timestamp}
+  // 监听 WebSocket — 仅处理连接/断开/温度（采集检测由轮询负责）
+  onMessage((msg) => {
     if (msg.detector) {
       const det = msg.detector
-      // 更新探测器状态（合并而非覆盖，保留 chip_version 等 WebSocket 不推送的字段）
-      const wasAcquiring = status.acquiring
       const wasConnected = status.connected
       status.connected = det.connected ?? status.connected
-      status.acquiring = det.acquiring ?? status.acquiring
-      // Agent 操作探测器时也会触发 WebSocket connected → 自动启动轮询
+      // 自动启动/停止轮询
       if (status.connected && !wasConnected) {
         _startPolling()
       }
       if (!status.connected && wasConnected) {
         _stopPolling()
-        // 探测器断开（含Agent关机）→ 清空全部状态
         params.value = { exptime: '', frames: '', period: '', highvoltage: '0', powerchip: '0', timing: '', fpath: '', fname: '', fwrite: '1', readoutspeed: '' }
         temperatures.value = {}
         visualData.value = null
         hasBaseline.value = false
         acqMode.value = 'signal'
       }
-      // 温湿度从消息中提取
+      // 温度从消息中提取（比轮询更及时）
       if (det.fpga_temp != null) {
         temperatures.value = { ...temperatures.value, fpga: [det.fpga_temp] }
       }
       if (det.adc_temp != null) {
         temperatures.value = { ...temperatures.value, adc: [det.adc_temp] }
-      }
-      // 采集开始（Agent 或其他来源触发）→ 启动进度条
-      if (det.acquiring && !wasAcquiring && !progress.value.acquiring) {
-        _startLocalProgress()
-      }
-      // 采集完成 → 停止进度条 + 获取图像 + 刷新历史
-      if (!det.acquiring && wasAcquiring) {
-        if (progress.value.acquiring) _stopLocalProgress()
-        // Retry processVisual — raw file may not be flushed yet
-        let vd: VisualData | null = null
-        for (let attempt = 0; attempt < 5; attempt++) {
-          await new Promise(r => setTimeout(r, 500))
-          try {
-            const result = await api.processVisual()
-            if (result) { vd = result as VisualData; break }
-          } catch { /* raw file not ready yet, retry */ }
-        }
-        if (vd) {
-          visualData.value = vd
-          hasBaseline.value = vd.baseline !== null
-        }
-        fetchHistory().catch(() => {})
       }
       error.value = null
       return
