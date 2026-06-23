@@ -1,7 +1,6 @@
 """Detector control tools — connection, acquisition, and shutdown (500K mode)."""
 import asyncio
 import glob
-import json
 import os
 import time
 
@@ -20,30 +19,6 @@ def _get_session():
 
 # ── Default config for 500K detector ──
 DEFAULT_CONFIG_PATH = "/home/jfdaq/JF500K/JF500K-shine.config"
-
-# ── Persistent baseline state (on disk, survives tool metadata resets) ──
-_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__),
-    "..", "..", "..", "..", ".."))
-BASELINE_STATE_FILE = os.path.join(_REPO_ROOT, ".baseline_state.json")
-
-def _read_baseline_state():
-    """Return persistent baseline state or None."""
-    try:
-        with open(BASELINE_STATE_FILE) as f:
-            s = json.load(f)
-        fpath, fname = s.get("fpath", ""), s.get("fname", "")
-        if fpath and fname and glob.glob(f"{fpath}/{fname}_d0_f0_*.raw"):
-            return s
-    except Exception:
-        pass
-    return None
-
-def _write_baseline_state(fpath, fname):
-    try:
-        with open(BASELINE_STATE_FILE, 'w') as f:
-            json.dump({"fpath": fpath, "fname": fname}, f)
-    except OSError:
-        pass
 
 
 # ── Input models ──
@@ -342,21 +317,17 @@ class DetectorRunAcquisition(BaseTool):
                 is_error=True
             )
 
-        # 0. Check baseline prerequisite for signal mode
+        # 0. Check baseline prerequisite for signal mode (via backend — same as frontend)
         if arguments.mode == "signal":
-            # Check in-memory metadata first, then fall back to disk state
-            if not context.metadata.get("has_baseline"):
-                saved = _read_baseline_state()
-                if saved:
-                    # Restore into metadata so downstream tools can use it
-                    context.metadata["has_baseline"] = True
-                    context.metadata["baseline_fpath"] = saved["fpath"]
-                    context.metadata["baseline_fname"] = saved["fname"]
-                else:
-                    return ToolResult(
-                        output="❌ 尚未采集基线。请先执行一次基线采集（mode='baseline'）。",
-                        is_error=True
-                    )
+            async with session.get(
+                f"{BASE_URL}/api/detector/baseline/status"
+            ) as resp:
+                bl_status = await resp.json()
+            if not bl_status.get("has_baseline"):
+                return ToolResult(
+                    output="❌ 尚未采集基线。请先执行一次基线采集（mode='baseline'）。",
+                    is_error=True
+                )
 
         # 1. Safety interlock — mandatory for ALL acquisition modes
         if arguments.check_safety:
@@ -418,7 +389,6 @@ class DetectorRunAcquisition(BaseTool):
             context.metadata["has_baseline"] = True
             context.metadata["baseline_fpath"] = fpath
             context.metadata["baseline_fname"] = fname
-            _write_baseline_state(fpath, fname)  # persist to disk
 
         return ToolResult(
             output=f"✅ 采集完成（模式: {arguments.mode}，耗时 {duration}s）\n"

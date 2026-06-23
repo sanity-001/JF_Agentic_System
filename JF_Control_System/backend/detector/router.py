@@ -171,6 +171,15 @@ async def set_mode(req: SetModeRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@router.get("/baseline/status")
+async def baseline_status():
+    """检查是否已有基线数据（内存中）。前端和 Agent 共用。"""
+    try:
+        return {"has_baseline": _detector.baseline is not None}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ── Visual processing (added for Agent + frontend integration) ──
 
 @router.post("/visual/process")
