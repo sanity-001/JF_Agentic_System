@@ -41,15 +41,18 @@ export function useDetector() {
   let _progressTimer: ReturnType<typeof setInterval> | null = null
   let _progressStart = 0
   let _progressExpected = 10
+  let _stopped = false  // 防止 clearInterval 后已入队的回调复活进度条
 
   function _startLocalProgress() {
-    _prevAcquiring = true  // 标记采集进行中，确保完成检测对按钮和Agent都生效
+    _stopped = false
+    _prevAcquiring = true
     const frames = parseInt(params.value.frames) || 0
     const period = parseDuration(params.value.period || '1ms', 'period')
     _progressExpected = frames * period || 10
     _progressStart = Date.now()
     if (_progressTimer) clearInterval(_progressTimer)
     _progressTimer = setInterval(() => {
+      if (_stopped) return
       const elapsed = (Date.now() - _progressStart) / 1000
       const pct = Math.min(Math.floor(elapsed / _progressExpected * 100), 99)
       progress.value = { acquiring: true, percentage: pct }
@@ -57,6 +60,7 @@ export function useDetector() {
   }
 
   function _stopLocalProgress() {
+    _stopped = true
     if (_progressTimer) {
       clearInterval(_progressTimer)
       _progressTimer = null
