@@ -4,6 +4,9 @@
 
 set -e
 
+# Clear inherited venv (Agent is launched via `uv run`, which sets VIRTUAL_ENV)
+unset VIRTUAL_ENV
+
 # Locate and source conda
 if [ -f "$HOME/miniconda3/etc/profile.d/conda.sh" ]; then
     source "$HOME/miniconda3/etc/profile.d/conda.sh"
@@ -19,8 +22,8 @@ conda activate slsdet9
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 echo "=== JF_Control_System Starting ==="
 
-# Backend
-python "$ROOT/run.py" &
+# Backend (use explicit conda Python to avoid inherited venv)
+"$CONDA_PREFIX/bin/python" "$ROOT/run.py" &
 BACKEND_PID=$!
 echo "[backend:$BACKEND_PID] Started uvicorn on :8000"
 
