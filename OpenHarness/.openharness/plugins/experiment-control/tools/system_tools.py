@@ -126,11 +126,21 @@ class SystemShutdown(BaseTool):
 
     async def execute(self, arguments: SystemShutdownInput,
                       context: ToolExecutionContext) -> ToolResult:
+        # 1. Kill by PID group if known (best effort)
         pid = context.metadata.get("startup_pid")
         if pid:
             try:
                 os.killpg(pid, signal.SIGTERM)
+                await asyncio.sleep(2)  # let processes wind down
             except ProcessLookupError:
                 pass
             context.metadata.pop("startup_pid", None)
+
+        # 2. Guaranteed cleanup: kill anything still on the ports
+        import subprocess as _sp
+        for port in (8000, 5173):
+            _sp.run(
+                ["fuser", "-k", f"{port}/tcp"],
+                capture_output=True, timeout=10
+            )
         return ToolResult(output="✅ 系统已停止")
