@@ -102,8 +102,16 @@ export function useDetector() {
       const det = msg.detector
       // 更新探测器状态（合并而非覆盖，保留 chip_version 等 WebSocket 不推送的字段）
       const wasAcquiring = status.acquiring
+      const wasConnected = status.connected
       status.connected = det.connected ?? status.connected
       status.acquiring = det.acquiring ?? status.acquiring
+      // Agent 操作探测器时也会触发 WebSocket connected → 自动启动轮询
+      if (status.connected && !wasConnected) {
+        _startPolling()
+      }
+      if (!status.connected && wasConnected) {
+        _stopPolling()
+      }
       // 温湿度从消息中提取
       if (det.fpga_temp != null) {
         temperatures.value = { ...temperatures.value, fpga: [det.fpga_temp] }
