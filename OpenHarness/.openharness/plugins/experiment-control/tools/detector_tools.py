@@ -389,6 +389,14 @@ class DetectorRunAcquisition(BaseTool):
             context.metadata["has_baseline"] = True
             context.metadata["baseline_fpath"] = fpath
             context.metadata["baseline_fname"] = fname
+            # Store baseline in backend memory (same as frontend processVisual)
+            try:
+                async with session.post(
+                    f"{BASE_URL}/api/detector/visual/process"
+                ) as _resp:
+                    pass  # best-effort, don't fail on error
+            except Exception:
+                pass
 
         return ToolResult(
             output=f"✅ 采集完成（模式: {arguments.mode}，耗时 {duration}s）\n"

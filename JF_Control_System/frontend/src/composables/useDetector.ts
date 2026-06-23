@@ -71,9 +71,12 @@ export function useDetector() {
     _pollTimer = setInterval(async () => {
       if (!status.connected) return
       try {
-        // 状态（含 chip_version、receiver_running）
+        // 状态（含 chip_version、receiver_running，但不含 acquiring——由WebSocket控制）
         const s = await api.getStatus()
-        if (s) Object.assign(status, s)
+        if (s) {
+          const { acquiring, ...rest } = s as any
+          Object.assign(status, rest)
+        }
         // 参数
         const p = await api.getParams()
         if (p && Object.keys(p).length > 0) {
