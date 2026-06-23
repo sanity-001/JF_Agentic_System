@@ -82,6 +82,10 @@ class DetectorService:
     def acq_mode(self, mode: str):
         self._original.acq_mode = mode
 
+    @property
+    def baseline(self):
+        return self._original.baseline
+
     def process_acquisition_visual(self, raw_paths: list):
         return self._original.process_acquisition_visual(raw_paths)
 
